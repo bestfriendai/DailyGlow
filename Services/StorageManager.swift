@@ -229,7 +229,7 @@ class StorageManager: ObservableObject {
         let widgetData = WidgetData(
             todayAffirmation: userDefaults.string(forKey: "todayAffirmationText") ?? "",
             userName: userPreferences.userName,
-            currentMood: userPreferences.currentMood,
+            currentMood: userPreferences.currentMood?.rawValue,
             streakCount: userDefaults.integer(forKey: "streakCount"),
             lastUpdated: Date()
         )

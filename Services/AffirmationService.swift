@@ -11,8 +11,12 @@ import Combine
 
 @MainActor
 class AffirmationService: ObservableObject {
+    // MARK: - Singleton
+    static let shared = AffirmationService()
+    
     // MARK: - Published Properties
     @Published var todayAffirmation: Affirmation?
+    @Published var todayAffirmations: [Affirmation] = [] // Multiple affirmations for swiping
     @Published var recentAffirmations: [Affirmation] = []
     @Published var favoriteAffirmations: [Affirmation] = []
     @Published var categoryAffirmations: [Category: [Affirmation]] = [:]
@@ -22,11 +26,20 @@ class AffirmationService: ObservableObject {
     @Published var totalAffirmationsViewed: Int = 0
     @Published var searchResults: [Affirmation] = []
     
+    // Convenience accessor for favorites
+    var favorites: [Affirmation] { favoriteAffirmations }
+    
     // MARK: - Private Properties
     private var allAffirmations: [Affirmation] = []
     private var viewedAffirmationIds: Set<String> = []
     private var favoriteIds: Set<String> = []
     private var cancellables = Set<AnyCancellable>()
+    
+    // MARK: - Deck Algorithm (No Repeats Until All Seen!)
+    private var shuffledDeck: [Affirmation] = []  // The deck to draw from
+    private var deckPosition: Int = 0              // Current position in deck
+    private let deckPositionKey = "deckPosition"
+    private let shuffledDeckIdsKey = "shuffledDeckIds"
     
     // UserDefaults keys
     private let todayAffirmationKey = "todayAffirmationId"
@@ -47,8 +60,8 @@ class AffirmationService: ObservableObject {
     
     // MARK: - Data Loading
     private func loadAllAffirmations() {
-        // Load the default affirmations
-        allAffirmations = Affirmation.sampleAffirmations
+        // Load the massive 1000+ affirmation database! 💰
+        allAffirmations = AffirmationDatabase.getAllAffirmations()
         
         // Organize by category
         for affirmation in allAffirmations {
@@ -60,6 +73,8 @@ class AffirmationService: ObservableObject {
         
         // Apply favorites
         updateFavorites()
+        
+        print("📚 Loaded \(allAffirmations.count) affirmations across \(categoryAffirmations.keys.count) categories!")
     }
     
     private func loadUserData() {
@@ -112,39 +127,106 @@ class AffirmationService: ObservableObject {
     }
     
     func generateDailyAffirmation() {
-        // Get user's preferred categories or use all
+        // DECK ALGORITHM: Guarantees ALL affirmations shown before ANY repeat!
+        
+        // Step 1: Get preferred categories
         let preferredCategories = UserDefaults.standard.array(forKey: "selectedCategories") as? [String] ?? []
         
         var availableAffirmations = allAffirmations
-        
-        // Filter by preferred categories if any
         if !preferredCategories.isEmpty {
             availableAffirmations = allAffirmations.filter { affirmation in
                 preferredCategories.contains(affirmation.category.rawValue)
             }
         }
         
-        // Filter out recently viewed (last 7 days worth)
-        let recentLimit = min(7, availableAffirmations.count / 2)
-        let recentIds = viewedAffirmationIds.suffix(recentLimit).compactMap { UUID(uuidString: $0) }
-        availableAffirmations = availableAffirmations.filter { !recentIds.contains($0.id) }
-        
-        // If all have been viewed recently, reset
-        if availableAffirmations.isEmpty {
-            availableAffirmations = allAffirmations
-            viewedAffirmationIds.removeAll()
+        // Step 2: Initialize or restore deck
+        if shuffledDeck.isEmpty {
+            restoreOrCreateDeck(from: availableAffirmations)
         }
         
-        // Select random affirmation
-        if let newAffirmation = availableAffirmations.randomElement() {
+        // Step 3: Check if we need to reshuffle (gone through entire deck)
+        if deckPosition >= shuffledDeck.count {
+            print("🔄 Reshuffling deck - user has seen all \(shuffledDeck.count) affirmations!")
+            shuffledDeck = availableAffirmations.shuffled()
+            deckPosition = 0
+            saveDeckState()
+        }
+        
+        // Step 4: Draw next 10 cards from deck (no repeats!)
+        let cardsToShow = min(10, shuffledDeck.count - deckPosition)
+        let endPosition = deckPosition + cardsToShow
+        todayAffirmations = Array(shuffledDeck[deckPosition..<endPosition])
+        
+        // Step 5: Advance deck position
+        deckPosition += cardsToShow
+        saveDeckState()
+        
+        print("📚 Showing cards \(deckPosition - cardsToShow + 1)-\(deckPosition) of \(shuffledDeck.count)")
+        
+        // Step 6: Set today's main affirmation
+        if let newAffirmation = todayAffirmations.first {
             todayAffirmation = newAffirmation
             UserDefaults.standard.set(newAffirmation.id.uuidString, forKey: todayAffirmationKey)
             lastRefreshDate = Date()
             UserDefaults.standard.set(lastRefreshDate, forKey: lastRefreshDateKey)
-            
-            // Add to recent
             addToRecent(newAffirmation)
         }
+    }
+    
+    // MARK: - Deck Management
+    
+    private func restoreOrCreateDeck(from affirmations: [Affirmation]) {
+        // Try to restore saved deck order
+        if let savedIds = UserDefaults.standard.array(forKey: shuffledDeckIdsKey) as? [String] {
+            deckPosition = UserDefaults.standard.integer(forKey: deckPositionKey)
+            
+            // Rebuild deck from saved IDs
+            shuffledDeck = savedIds.compactMap { idString in
+                guard let id = UUID(uuidString: idString) else { return nil }
+                return affirmations.first { $0.id == id }
+            }
+            
+            // If deck seems corrupted or categories changed, create fresh deck
+            if shuffledDeck.count < affirmations.count / 2 {
+                createFreshDeck(from: affirmations)
+            }
+            
+            print("📂 Restored deck at position \(deckPosition)/\(shuffledDeck.count)")
+        } else {
+            createFreshDeck(from: affirmations)
+        }
+    }
+    
+    private func createFreshDeck(from affirmations: [Affirmation]) {
+        shuffledDeck = affirmations.shuffled()
+        deckPosition = 0
+        saveDeckState()
+        print("🆕 Created fresh deck with \(shuffledDeck.count) affirmations")
+    }
+    
+    private func saveDeckState() {
+        // Save deck order as array of ID strings
+        let deckIds = shuffledDeck.map { $0.id.uuidString }
+        UserDefaults.standard.set(deckIds, forKey: shuffledDeckIdsKey)
+        UserDefaults.standard.set(deckPosition, forKey: deckPositionKey)
+    }
+    
+    /// Call this when user wants fresh affirmations (e.g., pulls to refresh)
+    func reshuffleDeck() {
+        let preferredCategories = UserDefaults.standard.array(forKey: "selectedCategories") as? [String] ?? []
+        var availableAffirmations = allAffirmations
+        
+        if !preferredCategories.isEmpty {
+            availableAffirmations = allAffirmations.filter { affirmation in
+                preferredCategories.contains(affirmation.category.rawValue)
+            }
+        }
+        
+        createFreshDeck(from: availableAffirmations)
+        generateDailyAffirmation()
+        
+        HapticManager.shared.notification(.success)
+        print("🔀 User requested reshuffle!")
     }
     
     // MARK: - Affirmation Interaction
@@ -302,7 +384,7 @@ class AffirmationService: ObservableObject {
             totalViewed: totalAffirmationsViewed,
             favoriteCount: favoriteAffirmations.count,
             currentStreak: streakCount,
-            categoriesExplored: Set(viewedAffirmationIds.compactMap { idString in
+            categoriesExplored: Set(viewedAffirmationIds.compactMap { idString -> Category? in
                 guard let id = UUID(uuidString: idString) else { return nil }
                 return allAffirmations.first { $0.id == id }?.category
             }).count,

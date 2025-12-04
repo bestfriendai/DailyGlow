@@ -1,132 +1,99 @@
-//
-//  NameInputView.swift
-//  DailyGlow
-//
-//  Get the user's name for personalization
-//
-
 import SwiftUI
 
+// MARK: - Name Input View (Page 3)
+
 struct NameInputView: View {
-    @Binding var userName: String
-    @FocusState private var isTextFieldFocused: Bool
-    @State private var showingEmoji = false
-    @State private var selectedEmoji = "✨"
-    
-    let emojis = ["✨", "🌟", "💫", "🌙", "☀️", "🌈", "💝", "🦋", "🌺", "🌸", "🌼", "🌻"]
+    let onContinue: () -> Void
+    @AppStorage("userName") private var userName = ""
+    @State private var inputName = ""
+    @FocusState private var isNameFocused: Bool
     
     var body: some View {
-        VStack(spacing: 30) {
+        VStack(spacing: 0) {
             Spacer()
             
-            // Emoji decoration
-            Text(selectedEmoji)
-                .font(.system(size: 80))
-                .scaleEffect(showingEmoji ? 1.0 : 0.5)
-                .rotationEffect(.degrees(showingEmoji ? 0 : -180))
-                .animation(.spring(response: 0.6, dampingFraction: 0.6), value: showingEmoji)
-                .onTapGesture {
-                    withAnimation {
-                        selectedEmoji = emojis.randomElement() ?? "✨"
-                    }
-                    HapticManager.shared.impact(.light)
+            // Content
+            VStack(spacing: 32) {
+                // Icon
+                ZStack {
+                    Circle()
+                        .fill(Color.glowPurple.opacity(0.2))
+                        .frame(width: 100, height: 100)
+                    
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 44))
+                        .foregroundColor(.glowPurple)
                 }
-            
-            // Header
-            VStack(spacing: 16) {
-                Text("What should we call you?")
-                    .font(Typography.h1)
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
                 
-                Text("Let's personalize your experience")
-                    .font(Typography.body)
-                    .foregroundColor(.white.opacity(0.8))
-            }
-            .padding(.horizontal, 40)
-            
-            // Name input
-            VStack(spacing: 20) {
-                TextField("", text: $userName, prompt: Text("Enter your name").foregroundColor(.white.opacity(0.5)))
-                    .font(Typography.h2)
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                    .focused($isTextFieldFocused)
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.white.opacity(0.1))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [
-                                                Color.white.opacity(isTextFieldFocused ? 0.5 : 0.2),
-                                                Color.white.opacity(isTextFieldFocused ? 0.3 : 0.1)
-                                            ],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 2
-                                    )
-                            )
-                    )
-                    .onSubmit {
-                        if !userName.isEmpty {
-                            isTextFieldFocused = false
-                        }
-                    }
-                
-                // Preview greeting
-                if !userName.isEmpty {
-                    VStack(spacing: 8) {
-                        Text("Great to meet you!")
-                            .font(Typography.small)
-                            .foregroundColor(.white.opacity(0.7))
-                        
-                        Text("Good morning, \(userName) ☀️")
-                            .font(Typography.h3)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 12)
-                            .background(
-                                Capsule()
-                                    .fill(Color.white.opacity(0.15))
-                                    .overlay(
-                                        Capsule()
-                                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                                    )
-                            )
-                    }
-                    .transition(.asymmetric(
-                        insertion: .scale.combined(with: .opacity),
-                        removal: .scale.combined(with: .opacity)
-                    ))
+                // Text
+                VStack(spacing: 12) {
+                    Text("What's your name?")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(.textPrimary)
+                    
+                    Text("We'll personalize your affirmations")
+                        .font(.system(size: 16))
+                        .foregroundColor(.textSecondary)
                 }
+                
+                // Input field
+                VStack(spacing: 8) {
+                    TextField("Your name", text: $inputName)
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+                        .multilineTextAlignment(.center)
+                        .tint(.glowGold)
+                        .focused($isNameFocused)
+                        .autocorrectionDisabled()
+                    
+                    // Underline
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                colors: isNameFocused ? [.glowGold, .glowGoldDark] : [.cardBorder, .cardBorder],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(height: 2)
+                        .animation(.easeInOut(duration: 0.2), value: isNameFocused)
+                }
+                .padding(.horizontal, 40)
             }
-            .padding(.horizontal, 40)
             
             Spacer()
             
-            // Privacy note
-            HStack(spacing: 8) {
-                Image(systemName: "lock.fill")
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.5))
-                Text("Your data stays on your device")
-                    .font(Typography.small)
-                    .foregroundColor(.white.opacity(0.5))
+            // Buttons
+            VStack(spacing: 12) {
+                PrimaryButton(
+                    title: "Continue",
+                    icon: "arrow.right",
+                    isDisabled: inputName.trimmingCharacters(in: .whitespaces).isEmpty
+                ) {
+                    userName = inputName.trimmingCharacters(in: .whitespaces)
+                    onContinue()
+                }
+                
+                GhostButton(title: "Skip for now") {
+                    onContinue()
+                }
             }
-            .padding(.bottom, 20)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 50)
         }
         .onAppear {
-            showingEmoji = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                isTextFieldFocused = true
+                isNameFocused = true
             }
         }
-        .onTapGesture {
-            isTextFieldFocused = false
-        }
+    }
+}
+
+// MARK: - Preview
+
+#Preview {
+    ZStack {
+        AnimatedBackground(style: .aurora)
+        NameInputView(onContinue: {})
     }
 }

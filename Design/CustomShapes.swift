@@ -1,10 +1,12 @@
 import SwiftUI
 
-// Wave shape for organic backgrounds
+// MARK: - Custom Shapes
+
+// Wave Shape for backgrounds
 struct WaveShape: Shape {
-    var offset: CGFloat = 0
-    var amplitude: CGFloat = 20
-    var frequency: CGFloat = 1
+    var offset: CGFloat
+    var amplitude: CGFloat
+    var frequency: CGFloat
     
     var animatableData: CGFloat {
         get { offset }
@@ -12,288 +14,147 @@ struct WaveShape: Shape {
     }
     
     func path(in rect: CGRect) -> Path {
-        Path { path in
-            path.move(to: CGPoint(x: 0, y: rect.midY))
-            
-            for x in stride(from: 0, through: rect.width, by: 1) {
-                let relativeX = x / rect.width
-                let y = rect.midY + amplitude * sin(2 * .pi * frequency * relativeX + offset)
-                path.addLine(to: CGPoint(x: x, y: y))
-            }
-            
-            path.addLine(to: CGPoint(x: rect.width, y: rect.maxY))
-            path.addLine(to: CGPoint(x: 0, y: rect.maxY))
-            path.closeSubpath()
+        var path = Path()
+        let width = rect.width
+        let height = rect.height
+        
+        path.move(to: CGPoint(x: 0, y: height))
+        
+        for x in stride(from: 0, through: width, by: 1) {
+            let relativeX = x / width
+            let sine = sin(relativeX * frequency * .pi * 2 + offset)
+            let y = amplitude * sine + height * 0.5
+            path.addLine(to: CGPoint(x: x, y: y))
         }
+        
+        path.addLine(to: CGPoint(x: width, y: height))
+        path.closeSubpath()
+        
+        return path
     }
 }
 
-// Blob shape for floating orbs
+// Blob Shape for organic backgrounds
 struct BlobShape: Shape {
-    var phase: CGFloat
+    var animatableData: CGFloat = 0
     
-    var animatableData: CGFloat {
-        get { phase }
-        set { phase = newValue }
+    func path(in rect: CGRect) -> Path {
+        let width = rect.width
+        let height = rect.height
+        let centerX = width / 2
+        let centerY = height / 2
+        let radius = min(width, height) / 2
+        
+        var path = Path()
+        
+        let points = 6
+        let angleStep = .pi * 2 / Double(points)
+        
+        for i in 0..<points {
+            let angle = angleStep * Double(i) + Double(animatableData)
+            let variation = sin(angle * 3 + Double(animatableData)) * 0.2 + 1
+            let r = radius * variation
+            let x = centerX + CGFloat(cos(angle)) * r
+            let y = centerY + CGFloat(sin(angle)) * r
+            
+            if i == 0 {
+                path.move(to: CGPoint(x: x, y: y))
+            } else {
+                let prevAngle = angleStep * Double(i - 1) + Double(animatableData)
+                let prevVariation = sin(prevAngle * 3 + Double(animatableData)) * 0.2 + 1
+                let prevR = radius * prevVariation
+                let prevX = centerX + CGFloat(cos(prevAngle)) * prevR
+                let prevY = centerY + CGFloat(sin(prevAngle)) * prevR
+                
+                let controlAngle = (prevAngle + angle) / 2
+                let controlR = radius * 1.1
+                let controlX = centerX + CGFloat(cos(controlAngle)) * controlR
+                let controlY = centerY + CGFloat(sin(controlAngle)) * controlR
+                
+                path.addQuadCurve(to: CGPoint(x: x, y: y), control: CGPoint(x: controlX, y: controlY))
+            }
+        }
+        
+        path.closeSubpath()
+        return path
     }
+}
+
+// Rounded Star Shape
+struct StarShape: Shape {
+    let points: Int
+    let innerRadius: CGFloat
+    let outerRadius: CGFloat
     
+    func path(in rect: CGRect) -> Path {
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let angleStep = .pi / Double(points)
+        
+        var path = Path()
+        
+        for i in 0..<(points * 2) {
+            let angle = angleStep * Double(i) - .pi / 2
+            let radius = i % 2 == 0 ? outerRadius : innerRadius
+            let x = center.x + CGFloat(cos(angle)) * radius
+            let y = center.y + CGFloat(sin(angle)) * radius
+            
+            if i == 0 {
+                path.move(to: CGPoint(x: x, y: y))
+            } else {
+                path.addLine(to: CGPoint(x: x, y: y))
+            }
+        }
+        
+        path.closeSubpath()
+        return path
+    }
+}
+
+// Hexagon Shape
+struct HexagonShape: Shape {
     func path(in rect: CGRect) -> Path {
         let center = CGPoint(x: rect.midX, y: rect.midY)
         let radius = min(rect.width, rect.height) / 2
         
-        return Path { path in
-            path.move(to: CGPoint(x: center.x + radius, y: center.y))
+        var path = Path()
+        
+        for i in 0..<6 {
+            let angle = .pi / 3 * Double(i) - .pi / 2
+            let x = center.x + CGFloat(cos(angle)) * radius
+            let y = center.y + CGFloat(sin(angle)) * radius
             
-            for angle in stride(from: 0, through: 360, by: 10) {
-                let radian = angle * .pi / 180
-                let variation = sin(radian * 3 + phase) * 10
-                let r = radius + variation
-                let x = center.x + r * cos(radian)
-                let y = center.y + r * sin(radian)
-                
-                if angle == 0 {
-                    path.move(to: CGPoint(x: x, y: y))
-                } else {
-                    path.addLine(to: CGPoint(x: x, y: y))
-                }
-            }
-            path.closeSubpath()
-        }
-    }
-}
-
-// Custom rounded rectangle with specific corners
-struct CustomRoundedRectangle: Shape {
-    var topLeft: CGFloat = 0
-    var topRight: CGFloat = 0
-    var bottomLeft: CGFloat = 0
-    var bottomRight: CGFloat = 0
-    
-    func path(in rect: CGRect) -> Path {
-        Path { path in
-            // Start from top-left
-            path.move(to: CGPoint(x: rect.minX + topLeft, y: rect.minY))
-            
-            // Top edge and top-right corner
-            path.addLine(to: CGPoint(x: rect.maxX - topRight, y: rect.minY))
-            path.addQuadCurve(
-                to: CGPoint(x: rect.maxX, y: rect.minY + topRight),
-                control: CGPoint(x: rect.maxX, y: rect.minY)
-            )
-            
-            // Right edge and bottom-right corner
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - bottomRight))
-            path.addQuadCurve(
-                to: CGPoint(x: rect.maxX - bottomRight, y: rect.maxY),
-                control: CGPoint(x: rect.maxX, y: rect.maxY)
-            )
-            
-            // Bottom edge and bottom-left corner
-            path.addLine(to: CGPoint(x: rect.minX + bottomLeft, y: rect.maxY))
-            path.addQuadCurve(
-                to: CGPoint(x: rect.minX, y: rect.maxY - bottomLeft),
-                control: CGPoint(x: rect.minX, y: rect.maxY)
-            )
-            
-            // Left edge and top-left corner
-            path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + topLeft))
-            path.addQuadCurve(
-                to: CGPoint(x: rect.minX + topLeft, y: rect.minY),
-                control: CGPoint(x: rect.minX, y: rect.minY)
-            )
-            
-            path.closeSubpath()
-        }
-    }
-}
-
-// Glow effect modifier
-struct GlowEffect: ViewModifier {
-    var color: Color = .white
-    var radius: CGFloat = 20
-    
-    func body(content: Content) -> some View {
-        content
-            .shadow(color: color.opacity(0.5), radius: radius / 2)
-            .shadow(color: color.opacity(0.3), radius: radius)
-            .shadow(color: color.opacity(0.1), radius: radius * 2)
-    }
-}
-
-// Pulse effect modifier
-struct PulseEffect: ViewModifier {
-    @State private var scale: CGFloat = 1.0
-    @State private var opacity: Double = 1.0
-    
-    func body(content: Content) -> some View {
-        content
-            .scaleEffect(scale)
-            .opacity(opacity)
-            .onAppear {
-                withAnimation(
-                    .easeInOut(duration: 1.5)
-                    .repeatForever(autoreverses: true)
-                ) {
-                    scale = 1.1
-                    opacity = 0.8
-                }
-            }
-    }
-}
-
-// Glass morphism modifier
-struct GlassMorphism: ViewModifier {
-    var cornerRadius: CGFloat = 20
-    
-    func body(content: Content) -> some View {
-        content
-            .background(
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: cornerRadius)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        Color.white.opacity(0.5),
-                                        Color.white.opacity(0.1)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-            )
-            .shadow(color: .shadowMedium, radius: 10, x: 0, y: 5)
-    }
-}
-
-// Shimmer effect for loading states
-struct ShimmerEffect: ViewModifier {
-    @State private var phase: CGFloat = 0
-    
-    func body(content: Content) -> some View {
-        content
-            .overlay(
-                LinearGradient(
-                    colors: [
-                        Color.white.opacity(0),
-                        Color.white.opacity(0.3),
-                        Color.white.opacity(0)
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .offset(x: phase * 400 - 200)
-                .mask(content)
-            )
-            .onAppear {
-                withAnimation(
-                    .linear(duration: 1.5)
-                    .repeatForever(autoreverses: false)
-                ) {
-                    phase = 1
-                }
-            }
-    }
-}
-
-// Floating animation modifier
-struct FloatingEffect: ViewModifier {
-    @State private var offset: CGFloat = 0
-    var amplitude: CGFloat = 10
-    
-    func body(content: Content) -> some View {
-        content
-            .offset(y: offset)
-            .onAppear {
-                withAnimation(
-                    .easeInOut(duration: 2)
-                    .repeatForever(autoreverses: true)
-                ) {
-                    offset = amplitude
-                }
-            }
-    }
-}
-
-// Extension for easy access to modifiers
-extension View {
-    func glowEffect(color: Color = .white, radius: CGFloat = 20) -> some View {
-        modifier(GlowEffect(color: color, radius: radius))
-    }
-    
-    func pulseEffect() -> some View {
-        modifier(PulseEffect())
-    }
-    
-    func glassMorphism(cornerRadius: CGFloat = 20) -> some View {
-        modifier(GlassMorphism(cornerRadius: cornerRadius))
-    }
-    
-    func shimmerEffect() -> some View {
-        modifier(ShimmerEffect())
-    }
-    
-    func floatingEffect(amplitude: CGFloat = 10) -> some View {
-        modifier(FloatingEffect(amplitude: amplitude))
-    }
-}
-
-// Particle effect view for celebrations
-struct ParticleEffect: View {
-    @State private var particles: [Particle] = []
-    var color: Color = .accentPink
-    var particleCount: Int = 20
-    
-    struct Particle: Identifiable {
-        let id = UUID()
-        var position: CGPoint
-        var velocity: CGVector
-        var size: CGFloat
-        var opacity: Double
-    }
-    
-    var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                ForEach(particles) { particle in
-                    Circle()
-                        .fill(color)
-                        .frame(width: particle.size, height: particle.size)
-                        .opacity(particle.opacity)
-                        .position(particle.position)
-                }
-            }
-            .onAppear {
-                createParticles(in: geometry.size)
-                animateParticles()
+            if i == 0 {
+                path.move(to: CGPoint(x: x, y: y))
+            } else {
+                path.addLine(to: CGPoint(x: x, y: y))
             }
         }
+        
+        path.closeSubpath()
+        return path
     }
-    
-    func createParticles(in size: CGSize) {
-        particles = (0..<particleCount).map { _ in
-            Particle(
-                position: CGPoint(x: size.width / 2, y: size.height / 2),
-                velocity: CGVector(
-                    dx: CGFloat.random(in: -5...5),
-                    dy: CGFloat.random(in: -10...-5)
-                ),
-                size: CGFloat.random(in: 4...8),
-                opacity: 1.0
-            )
-        }
+}
+
+// MARK: - Preview
+
+#Preview {
+    VStack(spacing: 20) {
+        WaveShape(offset: 0, amplitude: 20, frequency: 2)
+            .fill(Color.glowGold)
+            .frame(height: 100)
+        
+        BlobShape(animatableData: 0)
+            .fill(Color.glowPurple)
+            .frame(width: 150, height: 150)
+        
+        StarShape(points: 5, innerRadius: 30, outerRadius: 60)
+            .fill(Color.glowCoral)
+            .frame(width: 120, height: 120)
+        
+        HexagonShape()
+            .fill(Color.glowTeal)
+            .frame(width: 100, height: 100)
     }
-    
-    func animateParticles() {
-        withAnimation(.linear(duration: 2)) {
-            for index in particles.indices {
-                particles[index].position.x += particles[index].velocity.dx * 50
-                particles[index].position.y += particles[index].velocity.dy * 50
-                particles[index].opacity = 0
-            }
-        }
-    }
+    .padding()
+    .background(Color.backgroundDark)
 }

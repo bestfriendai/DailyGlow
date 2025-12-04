@@ -1,155 +1,178 @@
 import SwiftUI
 
-enum TimeOfDay {
-    case sunrise, morning, daylight, afternoon, evening, sunset, night
-}
+// MARK: - Premium Gradient Theme System
+// Rich, deep, high-contrast gradients for a $100 app feel
 
 struct GradientTheme {
-    // Morning gradients - warm oranges and yellows
-    static let morning: [[Color]] = [
-        [Color(red: 1.0, green: 0.8, blue: 0.4), Color(red: 1.0, green: 0.6, blue: 0.3)],
-        [Color(red: 1.0, green: 0.85, blue: 0.5), Color(red: 1.0, green: 0.65, blue: 0.4)],
-        [Color(red: 0.98, green: 0.75, blue: 0.65), Color(red: 0.95, green: 0.60, blue: 0.75)],
-        [Color(red: 1.0, green: 0.9, blue: 0.6), Color(red: 1.0, green: 0.7, blue: 0.5)],
-        [Color(red: 0.99, green: 0.82, blue: 0.55), Color(red: 0.97, green: 0.68, blue: 0.45)]
+    
+    // MARK: - Time-Based Background Gradients (Dark & Rich)
+    
+    static let morning: [Color] = [
+        Color(red: 0.18, green: 0.12, blue: 0.25),
+        Color(red: 0.12, green: 0.08, blue: 0.18)
     ]
     
-    // Evening gradients - purples and blues
-    static let evening: [[Color]] = [
-        [Color(red: 0.4, green: 0.3, blue: 0.7), Color(red: 0.6, green: 0.4, blue: 0.9)],
-        [Color(red: 0.5, green: 0.3, blue: 0.8), Color(red: 0.7, green: 0.5, blue: 0.95)],
-        [Color(red: 0.35, green: 0.25, blue: 0.65), Color(red: 0.55, green: 0.45, blue: 0.85)],
-        [Color(red: 0.45, green: 0.35, blue: 0.75), Color(red: 0.65, green: 0.5, blue: 0.9)],
-        [Color(red: 0.3, green: 0.2, blue: 0.6), Color(red: 0.5, green: 0.4, blue: 0.8)]
+    static let afternoon: [Color] = [
+        Color(red: 0.15, green: 0.1, blue: 0.22),
+        Color(red: 0.08, green: 0.06, blue: 0.14)
     ]
     
-    // Calm gradients - soft pastels
-    static let calm: [[Color]] = [
-        [Color(red: 0.85, green: 0.9, blue: 0.95), Color(red: 0.75, green: 0.85, blue: 0.9)],
-        [Color(red: 0.9, green: 0.85, blue: 0.95), Color(red: 0.85, green: 0.75, blue: 0.9)],
-        [Color(red: 0.95, green: 0.9, blue: 0.85), Color(red: 0.9, green: 0.85, blue: 0.75)],
-        [Color(red: 0.85, green: 0.95, blue: 0.9), Color(red: 0.75, green: 0.9, blue: 0.85)],
-        [Color(red: 0.9, green: 0.9, blue: 0.95), Color(red: 0.8, green: 0.85, blue: 0.9)]
+    static let evening: [Color] = [
+        Color(red: 0.12, green: 0.08, blue: 0.2),
+        Color(red: 0.06, green: 0.04, blue: 0.12)
     ]
     
-    // Energy gradients - vibrant combinations
-    static let energy: [[Color]] = [
-        [Color(red: 1.0, green: 0.3, blue: 0.4), Color(red: 1.0, green: 0.5, blue: 0.2)],
-        [Color(red: 0.9, green: 0.2, blue: 0.8), Color(red: 0.4, green: 0.6, blue: 1.0)],
-        [Color(red: 1.0, green: 0.4, blue: 0.2), Color(red: 1.0, green: 0.2, blue: 0.6)],
-        [Color(red: 0.2, green: 0.9, blue: 0.7), Color(red: 0.1, green: 0.5, blue: 0.95)],
-        [Color(red: 1.0, green: 0.2, blue: 0.5), Color(red: 0.95, green: 0.6, blue: 0.2)]
+    static let night: [Color] = [
+        Color(red: 0.06, green: 0.04, blue: 0.12),
+        Color(red: 0.02, green: 0.02, blue: 0.06)
     ]
     
-    // Sunset gradients
-    static let sunset: [[Color]] = [
-        [Color(red: 0.95, green: 0.4, blue: 0.3), Color(red: 0.9, green: 0.3, blue: 0.5)],
-        [Color(red: 1.0, green: 0.5, blue: 0.4), Color(red: 0.95, green: 0.35, blue: 0.55)],
-        [Color(red: 0.9, green: 0.45, blue: 0.35), Color(red: 0.85, green: 0.35, blue: 0.5)]
+    // MARK: - Card Accent Gradients (Vibrant overlays)
+    
+    static let cardSunrise: [Color] = [
+        Color(red: 1.0, green: 0.6, blue: 0.3).opacity(0.9),
+        Color(red: 1.0, green: 0.4, blue: 0.5).opacity(0.9)
     ]
     
-    // Night gradients
-    static let night: [[Color]] = [
-        [Color(red: 0.1, green: 0.1, blue: 0.3), Color(red: 0.2, green: 0.15, blue: 0.4)],
-        [Color(red: 0.15, green: 0.1, blue: 0.35), Color(red: 0.25, green: 0.2, blue: 0.45)],
-        [Color(red: 0.05, green: 0.05, blue: 0.25), Color(red: 0.15, green: 0.1, blue: 0.35)]
+    static let cardOcean: [Color] = [
+        Color(red: 0.2, green: 0.7, blue: 0.9).opacity(0.9),
+        Color(red: 0.4, green: 0.5, blue: 0.95).opacity(0.9)
     ]
     
-    // Function to get time-appropriate gradient
-    static func currentGradient() -> LinearGradient {
+    static let cardForest: [Color] = [
+        Color(red: 0.2, green: 0.75, blue: 0.5).opacity(0.9),
+        Color(red: 0.3, green: 0.6, blue: 0.7).opacity(0.9)
+    ]
+    
+    static let cardCosmic: [Color] = [
+        Color(red: 0.6, green: 0.3, blue: 0.9).opacity(0.9),
+        Color(red: 0.9, green: 0.4, blue: 0.7).opacity(0.9)
+    ]
+    
+    static let cardGold: [Color] = [
+        Color(red: 1.0, green: 0.8, blue: 0.3).opacity(0.9),
+        Color(red: 1.0, green: 0.6, blue: 0.25).opacity(0.9)
+    ]
+    
+    static let cardRose: [Color] = [
+        Color(red: 1.0, green: 0.5, blue: 0.6).opacity(0.9),
+        Color(red: 0.9, green: 0.35, blue: 0.55).opacity(0.9)
+    ]
+    
+    // All card gradients for random selection
+    static let allCardGradients: [[Color]] = [
+        cardSunrise, cardOcean, cardForest, cardCosmic, cardGold, cardRose
+    ]
+    
+    // MARK: - Category Gradients
+    
+    static func gradientForCategory(_ category: String) -> [Color] {
+        switch category.lowercased() {
+        case "self-love", "self love", "selflove":
+            return [Color.categorySelfLove, Color.categorySelfLove.opacity(0.7)]
+        case "success":
+            return [Color.categorySuccess, Color(red: 0.2, green: 0.7, blue: 0.4)]
+        case "health":
+            return [Color.categoryHealth, Color(red: 0.2, green: 0.7, blue: 0.7)]
+        case "relationships":
+            return [Color.categoryRelationships, Color(red: 0.9, green: 0.4, blue: 0.6)]
+        case "abundance":
+            return [Color.categoryAbundance, Color(red: 0.95, green: 0.65, blue: 0.2)]
+        case "confidence":
+            return [Color.categoryConfidence, Color(red: 0.5, green: 0.35, blue: 0.9)]
+        case "gratitude":
+            return [Color.categoryGratitude, Color(red: 0.95, green: 0.5, blue: 0.3)]
+        case "peace":
+            return [Color.categoryPeace, Color(red: 0.4, green: 0.6, blue: 0.9)]
+        case "creativity":
+            return [Color.categoryCreativity, Color(red: 0.9, green: 0.4, blue: 0.75)]
+        case "mindfulness":
+            return [Color.categoryMindfulness, Color(red: 0.5, green: 0.8, blue: 0.7)]
+        case "strength":
+            return [Color.categoryStrength, Color(red: 0.95, green: 0.4, blue: 0.25)]
+        case "joy":
+            return [Color.categoryJoy, Color(red: 0.95, green: 0.75, blue: 0.3)]
+        default:
+            return [Color.glowGold, Color.glowGoldDark]
+        }
+    }
+    
+    // MARK: - Mood Gradients
+    
+    static func gradientForMood(_ mood: String) -> [Color] {
+        switch mood.lowercased() {
+        case "energized":
+            return [Color.moodEnergized, Color(red: 1.0, green: 0.35, blue: 0.2)]
+        case "calm":
+            return [Color.moodCalm, Color(red: 0.35, green: 0.55, blue: 0.9)]
+        case "focused":
+            return [Color.moodFocused, Color(red: 0.45, green: 0.3, blue: 0.85)]
+        case "happy":
+            return [Color.moodHappy, Color(red: 1.0, green: 0.65, blue: 0.2)]
+        case "grateful":
+            return [Color.moodGrateful, Color(red: 0.95, green: 0.45, blue: 0.4)]
+        case "peaceful":
+            return [Color.moodPeaceful, Color(red: 0.4, green: 0.75, blue: 0.65)]
+        case "motivated":
+            return [Color.moodMotivated, Color(red: 0.95, green: 0.3, blue: 0.35)]
+        case "confident":
+            return [Color.moodConfident, Color(red: 0.55, green: 0.35, blue: 0.9)]
+        default:
+            return [Color.glowPurple, Color.glowPurpleDark]
+        }
+    }
+    
+    // MARK: - Time-Based Gradient Selection
+    
+    static func currentBackgroundGradient() -> LinearGradient {
         let hour = Calendar.current.component(.hour, from: Date())
         let colors: [Color]
         
         switch hour {
-        case 5..<9:
-            colors = morning.randomElement() ?? morning[0]
-        case 9..<12:
-            colors = energy.randomElement() ?? energy[0]
+        case 5..<12:
+            colors = morning
         case 12..<17:
-            colors = calm.randomElement() ?? calm[0]
-        case 17..<20:
-            colors = sunset.randomElement() ?? sunset[0]
-        case 20..<23:
-            colors = evening.randomElement() ?? evening[0]
+            colors = afternoon
+        case 17..<21:
+            colors = evening
         default:
-            colors = night.randomElement() ?? night[0]
+            colors = night
         }
         
+        return LinearGradient(
+            colors: colors,
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+    
+    static func randomCardGradient() -> LinearGradient {
+        let colors = allCardGradients.randomElement() ?? cardSunrise
         return LinearGradient(
             colors: colors,
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
     }
+}
+
+// MARK: - Gradient View Modifiers
+
+struct GlowingGradient: ViewModifier {
+    let colors: [Color]
+    let blur: CGFloat
     
-    // Get gradient for specific mood
-    static func gradientForMood(_ mood: String) -> LinearGradient {
-        let colors: [Color]
-        switch mood.lowercased() {
-        case "energized", "motivated", "excited":
-            colors = energy.randomElement() ?? energy[0]
-        case "calm", "peaceful", "relaxed":
-            colors = calm.randomElement() ?? calm[0]
-        case "happy", "joyful", "grateful":
-            colors = morning.randomElement() ?? morning[0]
-        case "focused", "determined", "confident":
-            colors = evening.randomElement() ?? evening[0]
-        default:
-            colors = calm.randomElement() ?? calm[0]
-        }
-        
-        return LinearGradient(
-            colors: colors,
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+    func body(content: Content) -> some View {
+        content
+            .background(
+                LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
+                    .blur(radius: blur)
+            )
     }
-    
-    // Animated gradient helper
-    static func animatedGradient(from colors: [Color], phase: Double) -> LinearGradient {
-        let adjustedColors = colors.map { color in
-            color.hueRotation(.degrees(phase * 30))
-        }
-        return LinearGradient(
-            colors: adjustedColors,
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-    
-    // Get gradient for specific time of day
-    static func getGradient(for timeOfDay: TimeOfDay) -> [Color] {
-        switch timeOfDay {
-        case .sunrise:
-            return morning.randomElement() ?? morning[0]
-        case .morning:
-            return morning.randomElement() ?? morning[0]
-        case .daylight:
-            return energy.randomElement() ?? energy[0]
-        case .afternoon:
-            return calm.randomElement() ?? calm[0]
-        case .evening:
-            return evening.randomElement() ?? evening[0]
-        case .sunset:
-            return sunset.randomElement() ?? sunset[0]
-        case .night:
-            return night.randomElement() ?? night[0]
-        }
-    }
-    
-    // Get gradient for specific mood
-    static func getGradient(for mood: Mood) -> [Color] {
-        switch mood {
-        case .energized, .motivated:
-            return energy.randomElement() ?? energy[0]
-        case .calm, .peaceful:
-            return calm.randomElement() ?? calm[0]
-        case .focused, .confident:
-            return evening.randomElement() ?? evening[0]
-        case .happy:
-            return morning.randomElement() ?? morning[0]
-        case .grateful:
-            return sunset.randomElement() ?? sunset[0]
-        }
+}
+
+extension View {
+    func glowingGradient(_ colors: [Color], blur: CGFloat = 20) -> some View {
+        modifier(GlowingGradient(colors: colors, blur: blur))
     }
 }

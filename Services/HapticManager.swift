@@ -263,7 +263,7 @@ class HapticManager: ObservableObject {
             
             for i in 0..<steps {
                 let progress = Float(i) / Float(steps)
-                let currentIntensity = inhale ? intensity * progress : intensity * (1 - progress)
+                let currentIntensity = inhale ? Float(intensity) * progress : Float(intensity) * (1 - progress)
                 
                 let event = CHHapticEvent(
                     eventType: .hapticContinuous,

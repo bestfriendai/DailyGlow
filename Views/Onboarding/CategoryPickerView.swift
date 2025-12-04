@@ -1,252 +1,193 @@
-//
-//  CategoryPickerView.swift
-//  DailyGlow
-//
-//  Select preferred affirmation categories
-//
-
 import SwiftUI
 
+// MARK: - Category Picker View (Page 5)
+
 struct CategoryPickerView: View {
-    @Binding var selectedCategories: Set<Category>
-    @State private var animatedCategories: Set<Category> = []
-    @State private var showError = false
+    let onContinue: () -> Void
+    @AppStorage("selectedCategories") private var selectedCategoriesData: Data = Data()
+    @State private var selectedCategories: Set<Category> = []
     
-    let categoryGrid: [[Category]] = [
-        [.selfLove, .success, .health],
-        [.relationships, .abundance, .confidence],
-        [.gratitude, .motivation, .peace],
-        [.spiritual]
-    ]
+    private let minSelection = 3
     
     var body: some View {
-        VStack(spacing: 30) {
+        VStack(spacing: 0) {
             // Header
-            VStack(spacing: 16) {
+            VStack(spacing: 12) {
                 Text("Choose your focus areas")
-                    .font(Typography.h1)
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(.textPrimary)
                 
-                Text("Select at least 3 categories that resonate with you")
-                    .font(Typography.body)
-                    .foregroundColor(.white.opacity(0.8))
+                Text("Select at least \(minSelection) categories that resonate with you")
+                    .font(.system(size: 16))
+                    .foregroundColor(.textSecondary)
                     .multilineTextAlignment(.center)
                 
                 // Selection counter
-                HStack {
+                HStack(spacing: 8) {
                     Text("\(selectedCategories.count)")
-                        .font(Typography.h2)
-                        .fontWeight(.bold)
-                        .foregroundColor(selectedCategories.count >= 3 ? .green : .white)
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(selectedCategories.count >= minSelection ? .glowGold : .textPrimary)
                     
-                    Text("/ 3 minimum")
-                        .font(Typography.small)
-                        .foregroundColor(.white.opacity(0.6))
+                    Text("/ \(minSelection) minimum")
+                        .font(.system(size: 14))
+                        .foregroundColor(.textTertiary)
                 }
                 .padding(.horizontal, 20)
-                .padding(.vertical, 8)
+                .padding(.vertical, 10)
                 .background(
                     Capsule()
-                        .fill(Color.white.opacity(0.1))
+                        .fill(Color.cardDark)
                         .overlay(
                             Capsule()
                                 .stroke(
-                                    selectedCategories.count >= 3 ? Color.green.opacity(0.5) : Color.white.opacity(0.2),
+                                    selectedCategories.count >= minSelection ? Color.glowGold : Color.cardBorder,
                                     lineWidth: 1
                                 )
                         )
                 )
-                .scaleEffect(showError ? 1.1 : 1.0)
-                .animation(.spring(response: 0.3), value: showError)
             }
-            .padding(.horizontal, 40)
-            .padding(.top, 40)
+            .padding(.top, 20)
+            .padding(.horizontal, 20)
             
-            // Category grid
+            // Categories grid
             ScrollView {
-                VStack(spacing: 16) {
-                    ForEach(Array(categoryGrid.enumerated()), id: \.offset) { rowIndex, row in
-                        HStack(spacing: 12) {
-                            ForEach(row, id: \.self) { category in
-                                CategoryCard(
-                                    category: category,
-                                    isSelected: selectedCategories.contains(category),
-                                    isAnimated: animatedCategories.contains(category)
-                                ) {
-                                    toggleCategory(category)
-                                }
-                                .onAppear {
-                                    animateCategory(category, rowIndex: rowIndex)
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    ForEach(Category.allCases, id: \.self) { category in
+                        CategoryCard(
+                            category: category,
+                            isSelected: selectedCategories.contains(category)
+                        ) {
+                            withAnimation(.spring(response: 0.3)) {
+                                if selectedCategories.contains(category) {
+                                    selectedCategories.remove(category)
+                                } else {
+                                    selectedCategories.insert(category)
                                 }
                             }
-                            
-                            // Add spacer for incomplete rows
-                            if row.count < 3 {
-                                ForEach(0..<(3 - row.count), id: \.self) { _ in
-                                    Color.clear
-                                        .frame(maxWidth: .infinity)
-                                }
-                            }
+                            HapticManager.shared.impact(.light)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
+                .padding(.bottom, 20)
+            }
+            
+            // Quick select
+            VStack(spacing: 16) {
+                Text("QUICK SELECT")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.textMuted)
+                
+                HStack(spacing: 12) {
+                    SecondaryButton(title: "Select All") {
+                        withAnimation {
+                            selectedCategories = Set(Category.allCases)
+                        }
+                    }
+                    
+                    SecondaryButton(title: "Popular") {
+                        withAnimation {
+                            selectedCategories = [.selfLove, .confidence, .success, .gratitude]
+                        }
+                    }
+                    
+                    SecondaryButton(title: "Clear") {
+                        withAnimation {
+                            selectedCategories = []
                         }
                     }
                 }
                 .padding(.horizontal, 20)
             }
             
-            // Quick select options
-            VStack(spacing: 12) {
-                Text("Quick Select")
-                    .font(Typography.caption)
-                    .foregroundColor(.white.opacity(0.5))
-                    .textCase(.uppercase)
-                
-                HStack(spacing: 12) {
-                    QuickSelectButton(title: "Select All") {
-                        withAnimation(.spring(response: 0.4)) {
-                            selectedCategories = Set(Category.allCases)
-                        }
-                        HapticManager.shared.impact(.medium)
-                    }
-                    
-                    QuickSelectButton(title: "Popular") {
-                        withAnimation(.spring(response: 0.4)) {
-                            selectedCategories = [.selfLove, .gratitude, .confidence, .motivation, .peace]
-                        }
-                        HapticManager.shared.impact(.medium)
-                    }
-                    
-                    QuickSelectButton(title: "Clear") {
-                        withAnimation(.spring(response: 0.4)) {
-                            selectedCategories.removeAll()
-                        }
-                        HapticManager.shared.impact(.light)
-                    }
-                }
+            // CTA
+            PrimaryButton(
+                title: "Continue",
+                icon: "arrow.right",
+                isDisabled: selectedCategories.count < minSelection
+            ) {
+                saveCategories()
+                onContinue()
             }
-            .padding(.horizontal, 40)
-            
-            Spacer(minLength: 20)
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 50)
         }
     }
     
-    private func toggleCategory(_ category: Category) {
-        withAnimation(.spring(response: 0.3)) {
-            if selectedCategories.contains(category) {
-                selectedCategories.remove(category)
-            } else {
-                selectedCategories.insert(category)
-            }
-        }
-        
-        // Haptic feedback
-        if selectedCategories.contains(category) {
-            HapticManager.shared.impact(.medium)
-        } else {
-            HapticManager.shared.impact(.light)
-        }
-        
-        // Show error if trying to continue with less than 3
-        if selectedCategories.count < 3 {
-            showError = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                showError = false
-            }
-        }
-    }
-    
-    private func animateCategory(_ category: Category, rowIndex: Int) {
-        let delay = Double(rowIndex) * 0.1 + Double.random(in: 0...0.1)
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
-                _ = animatedCategories.insert(category)
-            }
+    private func saveCategories() {
+        let categoryStrings = selectedCategories.map { $0.rawValue }
+        if let encoded = try? JSONEncoder().encode(categoryStrings) {
+            selectedCategoriesData = encoded
         }
     }
 }
 
+// MARK: - Category Card
+
 struct CategoryCard: View {
     let category: Category
     let isSelected: Bool
-    let isAnimated: Bool
     let action: () -> Void
+    
+    private var categoryColor: Color {
+        switch category {
+        case .selfLove: return .categorySelfLove
+        case .success: return .categorySuccess
+        case .health: return .categoryHealth
+        case .relationships: return .categoryRelationships
+        case .abundance: return .categoryAbundance
+        case .confidence: return .categoryConfidence
+        case .gratitude: return .categoryGratitude
+        case .peace: return .categoryPeace
+        case .creativity: return .categoryCreativity
+        case .mindfulness: return .categoryMindfulness
+        case .strength: return .categoryStrength
+        case .joy: return .categoryJoy
+        }
+    }
     
     var body: some View {
         Button(action: action) {
             VStack(spacing: 10) {
                 // Icon
-                ZStack {
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(
-                            LinearGradient(
-                                colors: isSelected ? [
-                                    category.color.opacity(0.3),
-                                    category.color.opacity(0.2)
-                                ] : [
-                                    Color.white.opacity(0.1),
-                                    Color.white.opacity(0.05)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(height: 60)
-                    
-                    Image(systemName: category.icon)
-                        .font(.title2)
-                        .foregroundColor(isSelected ? category.color : category.color.opacity(0.6))
-                }
+                Image(systemName: category.icon)
+                    .font(.system(size: 24))
+                    .foregroundColor(isSelected ? .white : categoryColor)
+                    .frame(width: 50, height: 50)
+                    .background(
+                        Circle()
+                            .fill(isSelected ? categoryColor : categoryColor.opacity(0.15))
+                    )
                 
-                // Title
+                // Name
                 Text(category.displayName)
-                    .font(Typography.small)
-                    .fontWeight(isSelected ? .semibold : .regular)
-                    .foregroundColor(isSelected ? .white : .white.opacity(0.8))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(isSelected ? .textPrimary : .textSecondary)
                     .lineLimit(1)
-                
-                // Count
-                Text("\(category.sampleAffirmations.count) affirmations")
-                    .font(Typography.tiny)
-                    .foregroundColor(.white.opacity(0.5))
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
+            .padding(.vertical, 16)
             .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(isSelected ? category.color.opacity(0.15) : Color.clear)
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isSelected ? categoryColor.opacity(0.15) : Color.cardDark)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(
-                                isSelected ? category.color.opacity(0.5) : Color.white.opacity(0.2),
-                                lineWidth: isSelected ? 2 : 1
-                            )
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(isSelected ? categoryColor : Color.cardBorder, lineWidth: isSelected ? 2 : 1)
                     )
             )
-            .scaleEffect(isAnimated ? (isSelected ? 1.05 : 1.0) : 0.8)
-            .opacity(isAnimated ? 1.0 : 0)
         }
+        .scaleEffect(isSelected ? 1.02 : 1)
+        .animation(.spring(response: 0.3), value: isSelected)
     }
 }
 
-struct QuickSelectButton: View {
-    let title: String
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(Typography.small)
-                .foregroundColor(.white.opacity(0.9))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(
-                    Capsule()
-                        .fill(Color.white.opacity(0.15))
-                        .overlay(
-                            Capsule()
-                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                        )
-                )
-        }
+// MARK: - Preview
+
+#Preview {
+    ZStack {
+        AnimatedBackground(style: .cosmic)
+        CategoryPickerView(onContinue: {})
     }
 }

@@ -1,217 +1,300 @@
 import SwiftUI
 
+// MARK: - Premium Affirmation Card
+// Beautiful card with image background support
+
 struct AffirmationCard: View {
     let affirmation: Affirmation
-    let isFavorite: Bool
-    @State private var isAnimating = false
+    var showCategory: Bool = true
+    var onFavorite: (() -> Void)? = nil
+    var onShare: (() -> Void)? = nil
     
-    var onFavoriteToggle: ((Bool) -> Void)?
-    var onShare: (() -> Void)?
+    @State private var isPressed = false
+    
+    // Get a background image - uses ALL 165 generated backgrounds!
+    private var backgroundImageName: String {
+        // Total backgrounds available: Bg1 through Bg165
+        let totalBackgrounds = 165
+        
+        // Use affirmation ID hash to pick a background (deterministic per affirmation)
+        let index = (abs(affirmation.id.hashValue) % totalBackgrounds) + 1
+        return "Bg\(index)"
+    }
+    
+    private var categoryGradient: [Color] {
+        GradientTheme.gradientForCategory(affirmation.category.rawValue)
+    }
     
     var body: some View {
-        ZStack {
-            // Background gradient
-            RoundedRectangle(cornerRadius: 30)
-                .fill(affirmation.category.gradient)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 30)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.2),
-                                    Color.white.opacity(0.05)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
+        VStack(spacing: 0) {
+            ZStack {
+                // Background Image
+                Image(backgroundImageName)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 28))
+                
+                // Dark overlay for text readability
+                RoundedRectangle(cornerRadius: 28)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.black.opacity(0.3),
+                                Color.black.opacity(0.5),
+                                Color.black.opacity(0.6)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
                         )
-                )
-            
-            // Glass morphism layer
-            RoundedRectangle(cornerRadius: 30)
-                .fill(.ultraThinMaterial)
-                .opacity(0.3)
-            
-            // Content
-            VStack(spacing: 30) {
-                // Category badge
-                HStack {
-                    Image(systemName: affirmation.category.icon)
-                        .font(.system(size: 14, weight: .semibold))
-                    Text(affirmation.category.rawValue)
-                        .font(.categoryBadge())
-                }
-                .foregroundColor(.white)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(
-                    Capsule()
-                        .fill(Color.white.opacity(0.2))
-                        .overlay(
-                            Capsule()
-                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                        )
-                )
+                    )
                 
-                Spacer()
-                
-                // Affirmation text
-                Text(affirmation.getDisplayText(userName: ""))
-                    .font(.affirmationTitle())
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(8)
-                    .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 2)
-                    .padding(.horizontal, 20)
-                    .fixedSize(horizontal: false, vertical: true)
-                
-                Spacer()
-                
-                // Action buttons
-                HStack(spacing: 40) {
-                    // Share button
-                    Button(action: {
-                        onShare?()
-                        HapticManager.shared.impact(.light)
-                    }) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 22, weight: .medium))
-                            .foregroundColor(.white)
-                            .frame(width: 50, height: 50)
-                            .background(
-                                Circle()
-                                    .fill(Color.white.opacity(0.2))
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                                    )
-                            )
+                // Content
+                VStack(spacing: 16) {
+                    // Category badge
+                    if showCategory {
+                        HStack {
+                            Label(affirmation.category.displayName, systemImage: affirmation.category.icon)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.white.opacity(0.9))
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(
+                                    Capsule()
+                                        .fill(Color.black.opacity(0.25))
+                                        .overlay(
+                                            Capsule()
+                                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                        )
+                                )
+                            
+                            Spacer()
+                        }
                     }
                     
-                    // Favorite button
-                    Button(action: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            onFavoriteToggle?(!isFavorite)
-                            HapticManager.shared.impact(.medium)
+                    Spacer()
+                    
+                    // Affirmation text
+                    Text(affirmation.text)
+                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                        .padding(.horizontal, 8)
+                    
+                    Spacer()
+                    
+                    // Action buttons
+                    HStack(spacing: 20) {
+                        // Share button
+                        Button(action: { onShare?() }) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundColor(.white.opacity(0.9))
+                                .frame(width: 50, height: 50)
+                                .background(
+                                    Circle()
+                                        .fill(Color.black.opacity(0.2))
+                                        .overlay(
+                                            Circle()
+                                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                        )
+                                )
                         }
-                    }) {
-                        Image(systemName: isFavorite ? "heart.fill" : "heart")
-                            .font(.system(size: 24, weight: .medium))
-                            .foregroundColor(isFavorite ? .red : .white)
-                            .scaleEffect(isFavorite ? 1.1 : 1.0)
-                            .frame(width: 50, height: 50)
-                            .background(
-                                Circle()
-                                    .fill(Color.white.opacity(0.2))
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                                    )
-                            )
+                        
+                        // Favorite button
+                        Button(action: { onFavorite?() }) {
+                            Image(systemName: affirmation.isFavorite ? "heart.fill" : "heart")
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundColor(affirmation.isFavorite ? .red : .white.opacity(0.9))
+                                .frame(width: 50, height: 50)
+                                .background(
+                                    Circle()
+                                        .fill(Color.black.opacity(0.2))
+                                        .overlay(
+                                            Circle()
+                                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                        )
+                                )
+                        }
+                    }
+                    
+                    // Brand watermark
+                    HStack {
+                        Spacer()
+                        HStack(spacing: 4) {
+                            Image(systemName: "sun.max.fill")
+                                .font(.system(size: 10))
+                            Text("Daily Glow")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .foregroundColor(.white.opacity(0.5))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(Color.black.opacity(0.15))
+                        )
                     }
                 }
+                .padding(24)
             }
-            .padding(.vertical, 40)
-        }
-        .frame(maxWidth: 350, maxHeight: 550)
-        .shadow(color: affirmation.category.color.opacity(0.3), radius: 20, x: 0, y: 10)
-        .scaleEffect(isAnimating ? 1.0 : 0.9)
-        .opacity(isAnimating ? 1.0 : 0.0)
-        .onAppear {
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                isAnimating = true
-            }
+            .aspectRatio(0.7, contentMode: .fit)
+            .scaleEffect(isPressed ? 0.98 : 1)
+            .animation(.spring(response: 0.3), value: isPressed)
         }
     }
 }
 
-// Mini card for grid views
-struct AffirmationMiniCard: View {
+// MARK: - Compact Affirmation Card (for lists)
+
+struct CompactAffirmationCard: View {
     let affirmation: Affirmation
-    let userName: String = ""
-    @State private var isPressed = false
+    var onTap: (() -> Void)? = nil
+    var onFavorite: (() -> Void)? = nil
+    
+    private var categoryGradient: [Color] {
+        GradientTheme.gradientForCategory(affirmation.category.rawValue)
+    }
+    
+    var body: some View {
+        Button(action: { onTap?() }) {
+            HStack(spacing: 16) {
+                // Category color indicator
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(
+                        LinearGradient(
+                            colors: categoryGradient,
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .frame(width: 4)
+                
+                // Content
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(affirmation.text)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.textPrimary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    
+                    Text(affirmation.category.displayName)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.textTertiary)
+                }
+                
+                Spacer()
+                
+                // Favorite button
+                Button(action: { onFavorite?() }) {
+                    Image(systemName: affirmation.isFavorite ? "heart.fill" : "heart")
+                        .font(.system(size: 18))
+                        .foregroundColor(affirmation.isFavorite ? .red : .textTertiary)
+                }
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.cardDark)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.cardBorder, lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Mini Card (for widget/grid view)
+
+struct MiniAffirmationCard: View {
+    let affirmation: Affirmation
+    
+    private var categoryGradient: [Color] {
+        GradientTheme.gradientForCategory(affirmation.category.rawValue)
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: affirmation.category.icon)
-                    .font(.system(size: 12, weight: .semibold))
-                Text(affirmation.category.rawValue)
-                    .font(.categoryBadge())
-                Spacer()
-            }
-            .foregroundColor(.white.opacity(0.9))
-            
-            Text(affirmation.getDisplayText(userName: userName))
-                .font(.uiBody())
+            // Category icon
+            Image(systemName: affirmation.category.icon)
+                .font(.system(size: 20, weight: .semibold))
                 .foregroundColor(.white)
-                .lineLimit(3)
-                .multilineTextAlignment(.leading)
+                .frame(width: 40, height: 40)
+                .background(
+                    Circle()
+                        .fill(Color.black.opacity(0.2))
+                )
             
             Spacer()
+            
+            Text(affirmation.text)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.white)
+                .lineLimit(4)
+                .multilineTextAlignment(.leading)
         }
         .padding(16)
-        .frame(height: 150)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 20)
-                .fill(affirmation.category.gradient)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(.ultraThinMaterial)
-                        .opacity(0.2)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                .fill(
+                    LinearGradient(
+                        colors: categoryGradient,
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
                 )
         )
-        .shadow(color: affirmation.category.color.opacity(0.2), radius: 10, x: 0, y: 5)
-        .scaleEffect(isPressed ? 0.95 : 1.0)
-        .onTapGesture {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                isPressed = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                isPressed = false
-            }
-        }
     }
 }
 
-// Floating affirmation preview
-struct AffirmationPreview: View {
-    let text: String
-    let category: Category
-    @State private var offset: CGFloat = 0
-    
-    var body: some View {
-        Text(text)
-            .font(.uiBody())
-            .foregroundColor(.white)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(
-                Capsule()
-                    .fill(category.gradient)
-                    .overlay(
-                        Capsule()
-                            .fill(.ultraThinMaterial)
-                            .opacity(0.2)
+// MARK: - Preview
+
+#Preview {
+    ZStack {
+        AnimatedBackground(style: .cosmic)
+        
+        ScrollView {
+            VStack(spacing: 20) {
+                AffirmationCard(
+                    affirmation: Affirmation(
+                        text: "I am worthy of love, success, and happiness in all areas of my life.",
+                        category: .selfLove
                     )
-                    .overlay(
-                        Capsule()
-                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                )
+                .padding(.horizontal)
+                
+                CompactAffirmationCard(
+                    affirmation: Affirmation(
+                        text: "Every day I grow stronger and more confident.",
+                        category: .confidence
                     )
-            )
-            .shadow(color: category.color.opacity(0.3), radius: 10, x: 0, y: 5)
-            .offset(y: offset)
-            .onAppear {
-                withAnimation(
-                    .easeInOut(duration: 2.0)
-                    .repeatForever(autoreverses: true)
-                ) {
-                    offset = -10
+                )
+                .padding(.horizontal)
+                
+                HStack(spacing: 12) {
+                    MiniAffirmationCard(
+                        affirmation: Affirmation(
+                            text: "I attract abundance",
+                            category: .abundance
+                        )
+                    )
+                    
+                    MiniAffirmationCard(
+                        affirmation: Affirmation(
+                            text: "I am at peace",
+                            category: .peace
+                        )
+                    )
                 }
+                .padding(.horizontal)
+                .frame(height: 160)
             }
+            .padding(.vertical)
+        }
     }
 }

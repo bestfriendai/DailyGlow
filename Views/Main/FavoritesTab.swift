@@ -1,710 +1,251 @@
-//
-//  FavoritesTab.swift
-//  DailyGlow
-//
-//  Tab displaying user's favorite affirmations in a beautiful grid
-//
-
 import SwiftUI
 
+// MARK: - Favorites Tab
+
 struct FavoritesTab: View {
-    // MARK: - Environment
     @EnvironmentObject var affirmationService: AffirmationService
-    
-    // MARK: - State
+    @State private var selectedCategory: Category? = nil
     @State private var searchText = ""
-    @State private var sortOption: SortOption = .dateAdded
-    @State private var viewMode: ViewMode = .grid
-    @State private var selectedCategory: Category?
-    @State private var showingExportSheet = false
-    @State private var exportText = ""
-    @State private var selectedAffirmation: Affirmation?
-    @State private var showingDetail = false
+    @State private var showingAffirmation: Affirmation? = nil
     
-    // MARK: - Enums
-    enum SortOption: String, CaseIterable {
-        case dateAdded = "Date Added"
-        case category = "Category"
-        case mood = "Mood"
-        case alphabetical = "A-Z"
-        
-        var icon: String {
-            switch self {
-            case .dateAdded: return "calendar"
-            case .category: return "square.grid.2x2"
-            case .mood: return "heart"
-            case .alphabetical: return "textformat"
-            }
-        }
-    }
-    
-    enum ViewMode: String, CaseIterable {
-        case grid = "Grid"
-        case list = "List"
-        case card = "Card"
-        
-        var icon: String {
-            switch self {
-            case .grid: return "square.grid.2x2"
-            case .list: return "list.bullet"
-            case .card: return "rectangle.stack"
-            }
-        }
-    }
-    
-    // MARK: - Computed Properties
     private var filteredFavorites: [Affirmation] {
-        var favorites = affirmationService.favoriteAffirmations
+        var favorites = affirmationService.favorites
         
-        // Apply search filter
-        if !searchText.isEmpty {
-            favorites = favorites.filter { affirmation in
-                affirmation.text.localizedCaseInsensitiveContains(searchText) ||
-                affirmation.category.displayName.localizedCaseInsensitiveContains(searchText)
-            }
-        }
-        
-        // Apply category filter
         if let category = selectedCategory {
             favorites = favorites.filter { $0.category == category }
         }
         
-        // Apply sorting
-        switch sortOption {
-        case .dateAdded:
-            // Already in order
-            break
-        case .category:
-            favorites.sort { $0.category.displayName < $1.category.displayName }
-        case .mood:
-            favorites.sort { $0.mood.rawValue < $1.mood.rawValue }
-        case .alphabetical:
-            favorites.sort { $0.text < $1.text }
+        if !searchText.isEmpty {
+            favorites = favorites.filter { 
+                $0.text.localizedCaseInsensitiveContains(searchText) 
+            }
         }
         
         return favorites
     }
     
-    private var categories: [Category] {
-        let allCategories = Set(affirmationService.favoriteAffirmations.map { $0.category })
-        return Array(allCategories).sorted { $0.displayName < $1.displayName }
-    }
-    
-    // MARK: - Body
     var body: some View {
-        NavigationView {
-            ZStack {
-                // Background
-                LinearGradient(
-                    colors: GradientTheme.getGradient(for: .evening),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+        ZStack {
+            // Background
+            AnimatedBackground(style: .cosmic, showParticles: false)
+            
+            VStack(spacing: 0) {
+                // Header
+                headerView
+                
+                // Category filter
+                categoryFilter
+                    .padding(.top, 12)
                 
                 // Content
-                if affirmationService.favoriteAffirmations.isEmpty {
-                    emptyStateView
+                if filteredFavorites.isEmpty {
+                    emptyState
                 } else {
-                    VStack(spacing: 0) {
-                        // Search and filters
-                        headerControls
-                            .padding(.horizontal, 20)
-                            .padding(.top, 10)
-                        
-                        // Category filter
-                        if !categories.isEmpty {
-                            categoryFilter
-                                .padding(.horizontal, 20)
-                                .padding(.top, 12)
-                        }
-                        
-                        // Favorites content
-                        ScrollView {
-                            contentView
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 20)
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Favorites")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        // View mode options
-                        Section("View Mode") {
-                            ForEach(ViewMode.allCases, id: \.self) { mode in
-                                Button {
-                                    withAnimation {
-                                        viewMode = mode
-                                    }
-                                } label: {
-                                    Label(
-                                        mode.rawValue,
-                                        systemImage: mode.icon
-                                    )
-                                }
-                            }
-                        }
-                        
-                        // Sort options
-                        Section("Sort By") {
-                            ForEach(SortOption.allCases, id: \.self) { option in
-                                Button {
-                                    withAnimation {
-                                        sortOption = option
-                                    }
-                                } label: {
-                                    Label(
-                                        option.rawValue,
-                                        systemImage: option.icon
-                                    )
-                                }
-                            }
-                        }
-                        
-                        Divider()
-                        
-                        // Export action
-                        Button {
-                            exportFavorites()
-                        } label: {
-                            Label("Export Favorites", systemImage: "square.and.arrow.up")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle.fill")
-                            .font(.title3)
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(.white)
-                    }
+                    favoritesList
                 }
             }
         }
-        .sheet(isPresented: $showingExportSheet) {
-            ShareSheet(items: [exportText])
-        }
-        .sheet(item: $selectedAffirmation) { affirmation in
-            AffirmationDetailSheet(
-                affirmation: affirmation,
-                isFavorite: affirmationService.isFavorite(affirmation),
-                onToggleFavorite: {
-                    affirmationService.toggleFavorite(affirmation)
-                }
-            )
+        .sheet(item: $showingAffirmation) { affirmation in
+            affirmationDetailSheet(affirmation)
         }
     }
     
-    // MARK: - Header Controls
-    private var headerControls: some View {
-        HStack(spacing: 12) {
-            // Search bar
+    // MARK: - Header
+    
+    private var headerView: some View {
+        VStack(spacing: 16) {
             HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.white.opacity(0.5))
-                
-                TextField("Search favorites...", text: $searchText)
-                    .foregroundColor(.white)
-                    .autocapitalization(.none)
-                
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.white.opacity(0.5))
-                    }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Favorites")
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundColor(.textPrimary)
+                    
+                    Text("\(affirmationService.favorites.count) saved affirmations")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.textTertiary)
                 }
+                
+                Spacer()
+                
+                // Heart icon
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 28))
+                    .foregroundColor(.red)
+                    .shadow(color: .red.opacity(0.5), radius: 10)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.ultraThinMaterial)
-            )
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
             
-            // View mode toggle
-            Button {
-                let modes = ViewMode.allCases
-                if let currentIndex = modes.firstIndex(of: viewMode) {
-                    let nextIndex = (currentIndex + 1) % modes.count
-                    withAnimation {
-                        viewMode = modes[nextIndex]
-                    }
-                    HapticManager.shared.selection()
+            // Search bar
+            searchBar
+                .padding(.horizontal, 20)
+        }
+    }
+    
+    private var searchBar: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.textTertiary)
+            
+            TextField("Search favorites...", text: $searchText)
+                .font(.system(size: 16))
+                .foregroundColor(.textPrimary)
+                .tint(.glowGold)
+            
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.textTertiary)
                 }
-            } label: {
-                Image(systemName: viewMode.icon)
-                    .font(.title3)
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
-                    .background(
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                    )
             }
         }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color.cardDark)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(Color.cardBorder, lineWidth: 1)
+                )
+        )
     }
     
     // MARK: - Category Filter
+    
     private var categoryFilter: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                // All categories
-                CategoryChip(
+                PillButton(
                     title: "All",
-                    icon: "square.grid.3x3",
-                    color: .white,
                     isSelected: selectedCategory == nil
                 ) {
-                    withAnimation {
+                    withAnimation(.spring(response: 0.3)) {
                         selectedCategory = nil
                     }
                 }
                 
-                // Individual categories
-                ForEach(categories, id: \.self) { category in
-                    CategoryChip(
+                ForEach(Category.allCases, id: \.self) { category in
+                    PillButton(
                         title: category.displayName,
                         icon: category.icon,
-                        color: category.color,
                         isSelected: selectedCategory == category
                     ) {
-                        withAnimation {
-                            selectedCategory = selectedCategory == category ? nil : category
+                        withAnimation(.spring(response: 0.3)) {
+                            selectedCategory = category
                         }
                     }
                 }
             }
+            .padding(.horizontal, 20)
         }
     }
     
-    // MARK: - Content View
-    @ViewBuilder
-    private var contentView: some View {
-        switch viewMode {
-        case .grid:
-            gridView
-        case .list:
-            listView
-        case .card:
-            cardView
-        }
-    }
+    // MARK: - Favorites List
     
-    private var gridView: some View {
-        LazyVGrid(columns: [
-            GridItem(.flexible(), spacing: 16),
-            GridItem(.flexible(), spacing: 16)
-        ], spacing: 16) {
-            ForEach(filteredFavorites) { affirmation in
-                FavoriteGridItem(affirmation: affirmation) {
-                    selectedAffirmation = affirmation
-                } onToggleFavorite: {
-                    affirmationService.toggleFavorite(affirmation)
+    private var favoritesList: some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                ForEach(filteredFavorites) { affirmation in
+                    CompactAffirmationCard(
+                        affirmation: affirmation,
+                        onTap: {
+                            showingAffirmation = affirmation
+                        },
+                        onFavorite: {
+                            affirmationService.toggleFavorite(affirmation)
+                            SoundManager.shared.playFavoriteRemove()
+                            HapticManager.shared.impact(.medium)
+                        }
+                    )
                 }
             }
-        }
-    }
-    
-    private var listView: some View {
-        VStack(spacing: 12) {
-            ForEach(filteredFavorites) { affirmation in
-                FavoriteListItem(affirmation: affirmation) {
-                    selectedAffirmation = affirmation
-                } onToggleFavorite: {
-                    affirmationService.toggleFavorite(affirmation)
-                }
-            }
-        }
-    }
-    
-    private var cardView: some View {
-        VStack(spacing: 20) {
-            ForEach(filteredFavorites) { affirmation in
-                FavoriteCardItem(affirmation: affirmation) {
-                    selectedAffirmation = affirmation
-                } onToggleFavorite: {
-                    affirmationService.toggleFavorite(affirmation)
-                }
-            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 120)
         }
     }
     
     // MARK: - Empty State
-    private var emptyStateView: some View {
+    
+    private var emptyState: some View {
         VStack(spacing: 20) {
-            Image(systemName: "heart.slash")
-                .font(.system(size: 80))
-                .foregroundColor(.white.opacity(0.3))
-            
-            VStack(spacing: 8) {
-                Text("No Favorites Yet")
-                    .font(Typography.h2)
-                    .foregroundColor(.white)
-                
-                Text("Swipe right on affirmations or tap the heart to add them to your favorites")
-                    .font(Typography.body)
-                    .foregroundColor(.white.opacity(0.7))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-            }
-        }
-    }
-    
-    // MARK: - Helper Methods
-    private func exportFavorites() {
-        exportText = affirmationService.exportFavorites()
-        showingExportSheet = true
-    }
-}
-
-// MARK: - Grid Item View
-struct FavoriteGridItem: View {
-    let affirmation: Affirmation
-    let onTap: () -> Void
-    let onToggleFavorite: () -> Void
-    
-    var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 12) {
-                // Category badge
-                HStack {
-                    Image(systemName: affirmation.category.icon)
-                        .font(.caption)
-                    Text(affirmation.category.displayName)
-                        .font(Typography.tiny)
-                }
-                .foregroundColor(affirmation.category.color)
-                
-                // Affirmation text
-                Text(affirmation.text)
-                    .font(Typography.small)
-                    .foregroundColor(.white)
-                    .lineLimit(4)
-                    .multilineTextAlignment(.leading)
-                
-                Spacer()
-                
-                // Bottom row
-                HStack {
-                    // Mood indicator
-                    Image(systemName: affirmation.mood.icon)
-                        .font(.caption)
-                        .foregroundColor(affirmation.mood.color)
-                    
-                    Spacer()
-                    
-                    // Favorite button
-                    Button {
-                        onToggleFavorite()
-                        HapticManager.shared.playFavoriteToggle(isFavorited: false)
-                    } label: {
-                        Image(systemName: "heart.fill")
-                            .font(.body)
-                            .foregroundColor(.pink)
-                    }
-                }
-            }
-            .padding()
-            .frame(maxWidth: .infinity, minHeight: 180)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                    )
-            )
-        }
-    }
-}
-
-// MARK: - List Item View
-struct FavoriteListItem: View {
-    let affirmation: Affirmation
-    let onTap: () -> Void
-    let onToggleFavorite: () -> Void
-    
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 16) {
-                // Category icon
-                Image(systemName: affirmation.category.icon)
-                    .font(.title2)
-                    .foregroundColor(affirmation.category.color)
-                    .frame(width: 40, height: 40)
-                    .background(
-                        Circle()
-                            .fill(affirmation.category.color.opacity(0.2))
-                    )
-                
-                // Content
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(affirmation.text)
-                        .font(Typography.small)
-                        .foregroundColor(.white)
-                        .lineLimit(2)
-                    
-                    HStack(spacing: 8) {
-                        Label(affirmation.category.displayName, systemImage: affirmation.category.icon)
-                            .font(Typography.tiny)
-                            .foregroundColor(.white.opacity(0.6))
-                        
-                        Text("•")
-                            .foregroundColor(.white.opacity(0.4))
-                        
-                        Label(affirmation.mood.rawValue.capitalized, systemImage: affirmation.mood.icon)
-                            .font(Typography.tiny)
-                            .foregroundColor(.white.opacity(0.6))
-                    }
-                }
-                
-                Spacer()
-                
-                // Favorite button
-                Button {
-                    onToggleFavorite()
-                    HapticManager.shared.playFavoriteToggle(isFavorited: false)
-                } label: {
-                    Image(systemName: "heart.fill")
-                        .font(.title3)
-                        .foregroundColor(.pink)
-                }
-            }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
-            )
-        }
-    }
-}
-
-// MARK: - Card Item View
-struct FavoriteCardItem: View {
-    let affirmation: Affirmation
-    let onTap: () -> Void
-    let onToggleFavorite: () -> Void
-    
-    var body: some View {
-        Button(action: onTap) {
-            VStack(spacing: 0) {
-                // Header
-                HStack {
-                    Label(affirmation.category.displayName, systemImage: affirmation.category.icon)
-                        .font(Typography.small)
-                        .foregroundColor(affirmation.category.color)
-                    
-                    Spacer()
-                    
-                    Button {
-                        onToggleFavorite()
-                        HapticManager.shared.playFavoriteToggle(isFavorited: false)
-                    } label: {
-                        Image(systemName: "heart.fill")
-                            .font(.title3)
-                            .foregroundColor(.pink)
-                    }
-                }
-                .padding()
-                .background(
-                    affirmation.category.color.opacity(0.1)
-                )
-                
-                // Content
-                Text(affirmation.text)
-                    .font(Typography.body)
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 32)
-                    .frame(maxWidth: .infinity)
-                
-                // Footer
-                HStack {
-                    Label(affirmation.mood.rawValue.capitalized, systemImage: affirmation.mood.icon)
-                        .font(Typography.small)
-                        .foregroundColor(affirmation.mood.color)
-                    
-                    Spacer()
-                    
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.5))
-                }
-                .padding()
-                .background(
-                    Color.white.opacity(0.05)
-                )
-            }
-            .background(
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(.ultraThinMaterial)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 24)
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                affirmation.category.color.opacity(0.3),
-                                affirmation.category.color.opacity(0.1)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
-            )
-        }
-    }
-}
-
-// MARK: - Category Chip
-struct CategoryChip: View {
-    let title: String
-    let icon: String
-    let color: Color
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.caption)
-                Text(title)
-                    .font(Typography.tiny)
-            }
-            .foregroundColor(isSelected ? .white : color)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                Capsule()
-                    .fill(isSelected ? color.opacity(0.3) : Color.white.opacity(0.1))
-                    .overlay(
-                        Capsule()
-                            .stroke(color.opacity(isSelected ? 0.6 : 0.3), lineWidth: 1)
-                    )
-            )
-        }
-    }
-}
-
-// MARK: - Detail Sheet
-struct AffirmationDetailSheet: View {
-    let affirmation: Affirmation
-    let isFavorite: Bool
-    let onToggleFavorite: () -> Void
-    @Environment(\.dismiss) var dismiss
-    
-    var body: some View {
-        NavigationView {
-            ZStack {
-                // Background gradient
-                LinearGradient(
-                    colors: GradientTheme.getGradient(for: affirmation.mood),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-                
-                // Content
-                ScrollView {
-                    VStack(spacing: 30) {
-                        // Affirmation text
-                        Text(affirmation.text)
-                            .font(Typography.h2)
-                            .foregroundColor(.white)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 30)
-                            .padding(.top, 40)
-                        
-                        // Metadata
-                        VStack(spacing: 16) {
-                            MetadataRow(
-                                icon: affirmation.category.icon,
-                                label: "Category",
-                                value: affirmation.category.displayName,
-                                color: affirmation.category.color
-                            )
-                            
-                            MetadataRow(
-                                icon: affirmation.mood.icon,
-                                label: "Mood",
-                                value: affirmation.mood.rawValue.capitalized,
-                                color: affirmation.mood.color
-                            )
-                        }
-                        .padding(.horizontal, 30)
-                        
-                        // Actions
-                        VStack(spacing: 12) {
-                            CustomButton(
-                                title: isFavorite ? "Remove from Favorites" : "Add to Favorites",
-                                style: .primary,
-                                icon: isFavorite ? "heart.slash" : "heart.fill"
-                            ) {
-                                onToggleFavorite()
-                                dismiss()
-                            }
-                            
-                            CustomButton(
-                                title: "Share",
-                                style: .secondary,
-                                icon: "square.and.arrow.up"
-                            ) {
-                                // Share action
-                            }
-                        }
-                        .padding(.horizontal, 30)
-                        .padding(.bottom, 40)
-                    }
-                }
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                    .foregroundColor(.white)
-                }
-            }
-        }
-    }
-}
-
-struct MetadataRow: View {
-    let icon: String
-    let label: String
-    let value: String
-    let color: Color
-    
-    var body: some View {
-        HStack {
-            Label(label, systemImage: icon)
-                .font(Typography.small)
-                .foregroundColor(.white.opacity(0.7))
-            
             Spacer()
             
-            Text(value)
-                .font(Typography.small)
-                .fontWeight(.medium)
-                .foregroundColor(color)
+            ZStack {
+                Circle()
+                    .fill(Color.cardDark)
+                    .frame(width: 100, height: 100)
+                
+                Image(systemName: "heart")
+                    .font(.system(size: 40))
+                    .foregroundColor(.textTertiary)
+            }
+            
+            VStack(spacing: 8) {
+                Text(searchText.isEmpty ? "No favorites yet" : "No results found")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(.textPrimary)
+                
+                Text(searchText.isEmpty 
+                     ? "Tap the heart on any affirmation\nto save it here"
+                     : "Try a different search term")
+                    .font(.system(size: 16))
+                    .foregroundColor(.textTertiary)
+                    .multilineTextAlignment(.center)
+            }
+            
+            Spacer()
+            Spacer()
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.ultraThinMaterial)
-        )
+    }
+    
+    // MARK: - Detail Sheet
+    
+    private func affirmationDetailSheet(_ affirmation: Affirmation) -> some View {
+        ZStack {
+            AnimatedBackground(style: .cosmic)
+            
+            VStack {
+                // Drag indicator
+                Capsule()
+                    .fill(Color.white.opacity(0.3))
+                    .frame(width: 40, height: 4)
+                    .padding(.top, 12)
+                
+                Spacer()
+                
+                AffirmationCard(
+                    affirmation: affirmation,
+                    onFavorite: {
+                        affirmationService.toggleFavorite(affirmation)
+                        HapticManager.shared.impact(.medium)
+                    },
+                    onShare: {
+                        // Share
+                    }
+                )
+                .padding(.horizontal, 20)
+                
+                Spacer()
+                
+                // Close button
+                SecondaryButton(title: "Close", icon: "xmark") {
+                    showingAffirmation = nil
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 40)
+            }
+        }
     }
 }
 
 // MARK: - Preview
+
 #Preview {
     FavoritesTab()
-        .environmentObject(AffirmationService())
+        .environmentObject(AffirmationService.shared)
 }

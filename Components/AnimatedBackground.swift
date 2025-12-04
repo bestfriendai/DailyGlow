@@ -1,319 +1,211 @@
 import SwiftUI
 
-enum BackgroundStyle {
-    case floatingBubbles, floatingOrbs, calm, energized
-}
+// MARK: - Premium Animated Background
+// Dark, atmospheric, dreamcore-inspired backgrounds
 
 struct AnimatedBackground: View {
-    @State private var animationPhase: CGFloat = 0
-    @State private var waveOffset: CGFloat = 0
-    @State private var orbPositions: [CGPoint] = []
-    @State private var orbPhases: [Double] = []
+    @State private var phase: CGFloat = 0
+    @State private var glowPhase: CGFloat = 0
     
-    let gradientColors: [Color]
-    let showOrbs: Bool
-    let showWaves: Bool
+    var style: BackgroundStyle = .cosmic
+    var showParticles: Bool = true
+    var showGlow: Bool = true
     
-    init(gradientColors: [Color]? = nil, showOrbs: Bool = true, showWaves: Bool = true) {
-        self.gradientColors = gradientColors ?? [.primaryGradientStart, .primaryGradientEnd]
-        self.showOrbs = showOrbs
-        self.showWaves = showWaves
-    }
-    
-    init(style: BackgroundStyle, primaryColor: Color, secondaryColor: Color) {
-        switch style {
-        case .floatingBubbles:
-            self.init(gradientColors: [primaryColor, secondaryColor], showOrbs: true, showWaves: true)
-        case .floatingOrbs:
-            self.init(gradientColors: [primaryColor, secondaryColor], showOrbs: true, showWaves: false)
-        case .calm:
-            self.init(gradientColors: [primaryColor, secondaryColor], showOrbs: false, showWaves: true)
-        case .energized:
-            self.init(gradientColors: [primaryColor, secondaryColor], showOrbs: true, showWaves: true)
+    enum BackgroundStyle {
+        case cosmic, aurora, night, sunrise, warm
+        
+        var colors: [Color] {
+            switch self {
+            case .cosmic:
+                return [
+                    Color(red: 0.1, green: 0.06, blue: 0.18),
+                    Color(red: 0.05, green: 0.03, blue: 0.1)
+                ]
+            case .aurora:
+                return [
+                    Color(red: 0.06, green: 0.1, blue: 0.15),
+                    Color(red: 0.03, green: 0.05, blue: 0.1)
+                ]
+            case .night:
+                return [
+                    Color(red: 0.04, green: 0.04, blue: 0.1),
+                    Color(red: 0.02, green: 0.02, blue: 0.05)
+                ]
+            case .sunrise:
+                return [
+                    Color(red: 0.15, green: 0.08, blue: 0.12),
+                    Color(red: 0.08, green: 0.05, blue: 0.1)
+                ]
+            case .warm:
+                return [
+                    Color(red: 0.12, green: 0.08, blue: 0.06),
+                    Color(red: 0.06, green: 0.04, blue: 0.03)
+                ]
+            }
+        }
+        
+        var accentColor: Color {
+            switch self {
+            case .cosmic: return Color(red: 0.6, green: 0.3, blue: 0.9)
+            case .aurora: return Color(red: 0.3, green: 0.9, blue: 0.7)
+            case .night: return Color(red: 0.4, green: 0.5, blue: 0.9)
+            case .sunrise: return Color(red: 1.0, green: 0.6, blue: 0.4)
+            case .warm: return Color(red: 1.0, green: 0.7, blue: 0.4)
+            }
         }
     }
     
     var body: some View {
-        ZStack {
-            // Base gradient
-            LinearGradient(
-                colors: gradientColors,
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .hueRotation(.degrees(animationPhase * 30))
-            .ignoresSafeArea()
-            
-            // Mesh gradient overlay
-            GeometryReader { geometry in
-                Canvas { context, size in
-                    context.fill(
-                        Path(CGRect(origin: .zero, size: size)),
-                        with: .radialGradient(
-                            Gradient(colors: [
-                                gradientColors[0].opacity(0.3),
-                                Color.clear
-                            ]),
-                            center: CGPoint(x: size.width * 0.3, y: size.height * 0.2),
-                            startRadius: 0,
-                            endRadius: size.width * 0.6
-                        )
-                    )
-                    
-                    context.fill(
-                        Path(CGRect(origin: .zero, size: size)),
-                        with: .radialGradient(
-                            Gradient(colors: [
-                                gradientColors[1].opacity(0.3),
-                                Color.clear
-                            ]),
-                            center: CGPoint(x: size.width * 0.7, y: size.height * 0.8),
-                            startRadius: 0,
-                            endRadius: size.width * 0.6
-                        )
-                    )
-                }
-                .blur(radius: 40)
+        GeometryReader { geometry in
+            ZStack {
+                // Base gradient
+                LinearGradient(
+                    colors: style.colors,
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
                 .ignoresSafeArea()
                 
-                // Floating orbs
-                if showOrbs {
-                    ForEach(0..<3, id: \.self) { index in
+                // Ambient glow orbs
+                if showGlow {
+                    // Primary glow
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    style.accentColor.opacity(0.3),
+                                    style.accentColor.opacity(0.1),
+                                    Color.clear
+                                ],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: geometry.size.width * 0.5
+                            )
+                        )
+                        .frame(width: geometry.size.width * 0.8)
+                        .offset(
+                            x: geometry.size.width * 0.2 * sin(glowPhase),
+                            y: -geometry.size.height * 0.2 + geometry.size.height * 0.1 * cos(glowPhase)
+                        )
+                        .blur(radius: 60)
+                    
+                    // Secondary glow
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    Color.glowGold.opacity(0.15),
+                                    Color.glowGold.opacity(0.05),
+                                    Color.clear
+                                ],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: geometry.size.width * 0.4
+                            )
+                        )
+                        .frame(width: geometry.size.width * 0.6)
+                        .offset(
+                            x: -geometry.size.width * 0.15 * cos(glowPhase * 0.7),
+                            y: geometry.size.height * 0.3 + geometry.size.height * 0.05 * sin(glowPhase * 0.7)
+                        )
+                        .blur(radius: 40)
+                }
+                
+                // Floating particles
+                if showParticles {
+                    ForEach(0..<20, id: \.self) { i in
                         Circle()
-                            .fill(
-                                RadialGradient(
-                                    colors: [
-                                        Color.white.opacity(0.3),
-                                        Color.white.opacity(0.1),
-                                        Color.clear
-                                    ],
-                                    center: .center,
-                                    startRadius: 0,
-                                    endRadius: 50
-                                )
+                            .fill(Color.white.opacity(Double.random(in: 0.1...0.4)))
+                            .frame(width: CGFloat.random(in: 1...3))
+                            .offset(
+                                x: geometry.size.width * CGFloat.random(in: -0.4...0.4),
+                                y: geometry.size.height * (0.5 - phase) + CGFloat(i * 40)
                             )
-                            .frame(width: 100, height: 100)
-                            .blur(radius: 20)
-                            .position(
-                                x: geometry.size.width * (0.2 + Double(index) * 0.3),
-                                y: geometry.size.height * (0.3 + sin(animationPhase + Double(index)) * 0.2)
-                            )
+                            .opacity(Double(1 - abs(0.5 - phase) * 2))
                     }
                 }
                 
-                // Wave overlays
-                if showWaves {
-                    WaveShape(offset: waveOffset, amplitude: 30, frequency: 1.5)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.1),
-                                    Color.white.opacity(0.05)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .frame(height: geometry.size.height * 0.3)
-                        .offset(y: geometry.size.height * 0.7)
-                    
-                    WaveShape(offset: waveOffset * 1.5, amplitude: 20, frequency: 2)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.08),
-                                    Color.white.opacity(0.03)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .frame(height: geometry.size.height * 0.25)
-                        .offset(y: geometry.size.height * 0.75)
-                }
+                // Subtle noise overlay for texture
+                Rectangle()
+                    .fill(Color.white.opacity(0.02))
+                    .ignoresSafeArea()
             }
         }
         .onAppear {
-            withAnimation(
-                .linear(duration: 20)
-                .repeatForever(autoreverses: false)
-            ) {
-                animationPhase = 1
+            withAnimation(.easeInOut(duration: 8).repeatForever(autoreverses: true)) {
+                glowPhase = .pi * 2
             }
-            
-            withAnimation(
-                .linear(duration: 10)
-                .repeatForever(autoreverses: false)
-            ) {
-                waveOffset = .pi * 2
+            withAnimation(.linear(duration: 20).repeatForever(autoreverses: false)) {
+                phase = 1
             }
         }
     }
 }
 
-// Calm background variant
-struct CalmBackground: View {
-    @State private var breathPhase: CGFloat = 0
+// MARK: - Image Background with Overlay
+
+struct ImageBackground: View {
+    let imageName: String
+    var overlayOpacity: Double = 0.4
+    var blurRadius: CGFloat = 0
     
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [.moodCalm, .moodCalm.opacity(0.7)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-            
-            // Breathing circle
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [
-                            Color.white.opacity(0.2),
-                            Color.white.opacity(0.05),
-                            Color.clear
-                        ],
-                        center: .center,
-                        startRadius: 50,
-                        endRadius: 150
-                    )
+        GeometryReader { geometry in
+            ZStack {
+                // Image
+                Image(imageName)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .clipped()
+                    .blur(radius: blurRadius)
+                
+                // Dark overlay for text readability
+                LinearGradient(
+                    colors: [
+                        Color.black.opacity(overlayOpacity * 0.5),
+                        Color.black.opacity(overlayOpacity),
+                        Color.black.opacity(overlayOpacity * 0.8)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
-                .frame(width: 300, height: 300)
-                .scaleEffect(1 + breathPhase * 0.2)
-                .opacity(0.8 - breathPhase * 0.3)
-                .blur(radius: 30)
-        }
-        .onAppear {
-            withAnimation(
-                .easeInOut(duration: 4)
-                .repeatForever(autoreverses: true)
-            ) {
-                breathPhase = 1
             }
         }
+        .ignoresSafeArea()
     }
 }
 
-// Energized background variant
-struct EnergizedBackground: View {
-    @State private var particlePhase: CGFloat = 0
-    @State private var rotationAngle: Double = 0
+// MARK: - Simple Dark Background
+
+struct DarkBackground: View {
+    var topColor: Color = Color(red: 0.1, green: 0.08, blue: 0.15)
+    var bottomColor: Color = Color(red: 0.05, green: 0.04, blue: 0.08)
     
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [.moodEnergized, .accentOrange],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .hueRotation(.degrees(rotationAngle))
-            .ignoresSafeArea()
-            
-            // Energy particles
-            GeometryReader { geometry in
-                ForEach(0..<15, id: \.self) { index in
-                    Circle()
-                        .fill(Color.white.opacity(0.3))
-                        .frame(width: CGFloat.random(in: 2...8))
-                        .position(
-                            x: geometry.size.width * CGFloat.random(in: 0...1),
-                            y: geometry.size.height * (1 - particlePhase) + CGFloat(index * 50)
-                        )
-                        .blur(radius: 1)
-                }
-            }
-        }
-        .onAppear {
-            withAnimation(
-                .linear(duration: 5)
-                .repeatForever(autoreverses: false)
-            ) {
-                particlePhase = 1.2
-            }
-            
-            withAnimation(
-                .linear(duration: 10)
-                .repeatForever(autoreverses: false)
-            ) {
-                rotationAngle = 360
-            }
-        }
+        LinearGradient(
+            colors: [topColor, bottomColor],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .ignoresSafeArea()
     }
 }
 
-// Night mode background
-struct NightBackground: View {
-    @State private var starOpacities: [Double] = []
-    @State private var starPositions: [CGPoint] = []
-    
-    var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.05, green: 0.05, blue: 0.15),
-                    Color(red: 0.1, green: 0.1, blue: 0.3)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+// MARK: - Preview
+
+#Preview {
+    ZStack {
+        AnimatedBackground(style: .cosmic)
+        
+        VStack {
+            Text("Daily Glow")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
             
-            // Stars
-            GeometryReader { geometry in
-                ForEach(0..<30, id: \.self) { index in
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: CGFloat.random(in: 1...3))
-                        .opacity(starOpacities.isEmpty ? 0 : starOpacities[index % starOpacities.count])
-                        .position(
-                            starPositions.isEmpty ? .zero : starPositions[index % starPositions.count]
-                        )
-                }
-            }
-            
-            // Moon glow
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [
-                            Color.white.opacity(0.1),
-                            Color.white.opacity(0.05),
-                            Color.clear
-                        ],
-                        center: .center,
-                        startRadius: 30,
-                        endRadius: 150
-                    )
-                )
-                .frame(width: 300, height: 300)
-                .offset(x: 100, y: -200)
-                .blur(radius: 30)
-        }
-        .onAppear {
-            generateStars()
-            animateStars()
-        }
-    }
-    
-    func generateStars() {
-        starOpacities = (0..<30).map { _ in Double.random(in: 0.3...1.0) }
-        starPositions = (0..<30).map { _ in
-            CGPoint(
-                x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
-                y: CGFloat.random(in: 0...UIScreen.main.bounds.height)
-            )
-        }
-    }
-    
-    func animateStars() {
-        for index in 0..<starOpacities.count {
-            withAnimation(
-                .easeInOut(duration: Double.random(in: 2...5))
-                .repeatForever(autoreverses: true)
-                .delay(Double.random(in: 0...2))
-            ) {
-                starOpacities[index] = Double.random(in: 0.1...1.0)
-            }
+            Text("Premium Background")
+                .foregroundColor(.white.opacity(0.7))
         }
     }
 }

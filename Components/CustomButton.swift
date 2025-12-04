@@ -1,382 +1,251 @@
 import SwiftUI
 
-// Unified button wrapper
-struct CustomButton: View {
+// MARK: - Premium Button Styles
+
+struct PrimaryButton: View {
     let title: String
-    let style: ButtonStyle
+    var icon: String? = nil
+    var isLoading: Bool = false
+    var isDisabled: Bool = false
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                if isLoading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .black))
+                        .scaleEffect(0.8)
+                } else {
+                    if let icon = icon {
+                        Image(systemName: icon)
+                            .font(.system(size: 18, weight: .semibold))
+                    }
+                    Text(title)
+                        .font(.system(size: 17, weight: .semibold))
+                }
+            }
+            .foregroundColor(.black)
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .background(
+                ZStack {
+                    // Shadow glow
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.glowGold)
+                        .blur(radius: 15)
+                        .opacity(isDisabled ? 0 : 0.5)
+                        .offset(y: 5)
+                    
+                    // Main button
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(
+                            LinearGradient(
+                                colors: isDisabled 
+                                    ? [Color.gray.opacity(0.3), Color.gray.opacity(0.2)]
+                                    : [Color.glowGold, Color.glowGoldDark],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                    
+                    // Top highlight
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                        .mask(
+                            LinearGradient(
+                                colors: [Color.white, Color.clear],
+                                startPoint: .top,
+                                endPoint: .center
+                            )
+                        )
+                }
+            )
+        }
+        .disabled(isDisabled || isLoading)
+        .opacity(isDisabled ? 0.6 : 1)
+    }
+}
+
+// MARK: - Secondary Button
+
+struct SecondaryButton: View {
+    let title: String
     var icon: String? = nil
     let action: () -> Void
     
-    enum ButtonStyle {
-        case primary, secondary, tertiary
-    }
-    
     var body: some View {
-        switch style {
-        case .primary:
-            PrimaryCTAButton(title: title, action: action)
-        case .secondary:
-            SecondaryButton(title: title, icon: icon, action: action)
-        case .tertiary:
-            SecondaryButton(title: title, icon: icon, action: action)
-        }
-    }
-}
-
-// Primary CTA button
-struct PrimaryCTAButton: View {
-    let title: String
-    let action: () -> Void
-    @State private var isPressed = false
-    @State private var shimmerPhase: CGFloat = 0
-    
-    var body: some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                isPressed = true
-            }
-            HapticManager.shared.impact(.medium)
-            action()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                isPressed = false
-            }
-        }) {
-            ZStack {
-                // Background gradient
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [.primaryGradientStart, .primaryGradientEnd],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                
-                // Shimmer effect
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.clear,
-                                Color.white.opacity(0.3),
-                                Color.clear
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .offset(x: shimmerPhase * 300 - 150)
-                    .mask(Capsule())
-                
-                // Text
-                Text(title)
-                    .font(.buttonLarge())
-                    .foregroundColor(.white)
-                    .fontWeight(.semibold)
-            }
-            .frame(height: 56)
-            .shadow(color: .primaryGradientEnd.opacity(0.4), radius: 15, x: 0, y: 8)
-            .scaleEffect(isPressed ? 0.95 : 1.0)
-        }
-        .onAppear {
-            withAnimation(
-                .linear(duration: 2)
-                .repeatForever(autoreverses: false)
-                .delay(1)
-            ) {
-                shimmerPhase = 1
-            }
-        }
-    }
-}
-
-// Secondary button
-struct SecondaryButton: View {
-    let title: String
-    let icon: String?
-    let action: () -> Void
-    @State private var isPressed = false
-    
-    init(title: String, icon: String? = nil, action: @escaping () -> Void) {
-        self.title = title
-        self.icon = icon
-        self.action = action
-    }
-    
-    var body: some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                isPressed = true
-            }
-            HapticManager.shared.impact(.light)
-            action()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                isPressed = false
-            }
-        }) {
-            HStack(spacing: 12) {
+        Button(action: action) {
+            HStack(spacing: 8) {
                 if let icon = icon {
                     Image(systemName: icon)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 16, weight: .medium))
                 }
                 Text(title)
-                    .font(.buttonMedium())
-                    .fontWeight(.medium)
+                    .font(.system(size: 16, weight: .medium))
             }
-            .foregroundColor(.textPrimary)
-            .frame(height: 48)
-            .padding(.horizontal, 24)
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
             .background(
-                Capsule()
-                    .stroke(Color.adaptiveBorder, lineWidth: 1.5)
-                    .background(
-                        Capsule()
-                            .fill(Color.backgroundSecondary)
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Color.white.opacity(0.1))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
                     )
             )
-            .scaleEffect(isPressed ? 0.95 : 1.0)
         }
     }
 }
 
-// Icon button
-struct IconButton: View {
-    let icon: String
+// MARK: - Ghost Button
+
+struct GhostButton: View {
+    let title: String
+    var color: Color = .white
     let action: () -> Void
-    @State private var isPressed = false
-    var size: CGFloat = 44
-    var backgroundColor: Color = .clear
-    var foregroundColor: Color = .textPrimary
     
     var body: some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                isPressed = true
-            }
-            HapticManager.shared.impact(.light)
-            action()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                isPressed = false
-            }
-        }) {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(color.opacity(0.7))
+        }
+    }
+}
+
+// MARK: - Icon Button
+
+struct IconButton: View {
+    let icon: String
+    var size: CGFloat = 44
+    var iconSize: CGFloat = 20
+    var backgroundColor: Color = Color.white.opacity(0.1)
+    var iconColor: Color = .white
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: size * 0.45, weight: .medium))
-                .foregroundColor(foregroundColor)
+                .font(.system(size: iconSize, weight: .medium))
+                .foregroundColor(iconColor)
                 .frame(width: size, height: size)
                 .background(
                     Circle()
                         .fill(backgroundColor)
                         .overlay(
                             Circle()
-                                .stroke(Color.adaptiveBorder.opacity(0.2), lineWidth: 1)
+                                .stroke(Color.white.opacity(0.1), lineWidth: 1)
                         )
                 )
-                .scaleEffect(isPressed ? 0.85 : 1.0)
         }
     }
 }
 
-// Category selection button
-struct CategoryButton: View {
-    let category: Category
-    let isSelected: Bool
-    let action: () -> Void
-    @State private var isHovering = false
-    
-    var body: some View {
-        Button(action: {
-            HapticManager.shared.impact(.light)
-            action()
-        }) {
-            VStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(category.gradient)
-                        .frame(width: 60, height: 60)
-                    
-                    if isSelected {
-                        Circle()
-                            .stroke(Color.white, lineWidth: 3)
-                            .frame(width: 60, height: 60)
-                    }
-                    
-                    Image(systemName: category.icon)
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-                .shadow(color: category.color.opacity(0.3), radius: isSelected ? 15 : 8, x: 0, y: 5)
-                
-                Text(category.rawValue)
-                    .font(.uiCaption())
-                    .foregroundColor(.textPrimary)
-                    .lineLimit(1)
-            }
-            .scaleEffect(isSelected ? 1.1 : (isHovering ? 1.05 : 1.0))
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSelected)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isHovering)
-        }
-        .onHover { hovering in
-            isHovering = hovering
-        }
-    }
-}
+// MARK: - Pill Button (for tags/filters)
 
-// Mood selection button (renamed to avoid conflict with JournalTab)
-struct CustomMoodButton: View {
-    let mood: Mood
-    let isSelected: Bool
-    let action: () -> Void
-    @State private var isAnimating = false
-    
-    var body: some View {
-        Button(action: {
-            HapticManager.shared.impact(.light)
-            action()
-        }) {
-            HStack(spacing: 12) {
-                Image(systemName: mood.icon)
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(isSelected ? .white : mood.color)
-                
-                Text(mood.rawValue)
-                    .font(.uiBody())
-                    .foregroundColor(isSelected ? .white : .textPrimary)
-                
-                Spacer()
-                
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(.white)
-                        .transition(.scale.combined(with: .opacity))
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(isSelected ? mood.color : Color.backgroundSecondary)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(isSelected ? Color.clear : Color.adaptiveBorder.opacity(0.2), lineWidth: 1)
-                    )
-            )
-            .shadow(color: isSelected ? mood.color.opacity(0.3) : .clear, radius: 10, x: 0, y: 5)
-            .scaleEffect(isAnimating ? 1.02 : 1.0)
-        }
-        .onChange(of: isSelected) { selected in
-            if selected {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                    isAnimating = true
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    isAnimating = false
-                }
-            }
-        }
-    }
-}
-
-// Tab bar button
-struct TabBarButton: View {
+struct PillButton: View {
     let title: String
-    let icon: String
+    var icon: String? = nil
     let isSelected: Bool
+    var selectedColor: Color = .glowGold
     let action: () -> Void
     
     var body: some View {
-        Button(action: {
-            HapticManager.shared.impact(.light)
-            action()
-        }) {
-            VStack(spacing: 4) {
-                Image(systemName: isSelected ? "\(icon).fill" : icon)
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundColor(isSelected ? .primaryGradientEnd : .textSecondary)
-                    .scaleEffect(isSelected ? 1.1 : 1.0)
-                
+        Button(action: action) {
+            HStack(spacing: 6) {
+                if let icon = icon {
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .medium))
+                }
                 Text(title)
-                    .font(.tabBarItem())
-                    .foregroundColor(isSelected ? .primaryGradientEnd : .textSecondary)
+                    .font(.system(size: 14, weight: .medium))
             }
-            .frame(maxWidth: .infinity)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
-        }
-    }
-}
-
-// Social login button
-struct SocialLoginButton: View {
-    enum Provider {
-        case apple, google
-        
-        var title: String {
-            switch self {
-            case .apple: return "Continue with Apple"
-            case .google: return "Continue with Google"
-            }
-        }
-        
-        var icon: String {
-            switch self {
-            case .apple: return "apple.logo"
-            case .google: return "globe"
-            }
-        }
-        
-        var backgroundColor: Color {
-            switch self {
-            case .apple: return Color.black
-            case .google: return Color.white
-            }
-        }
-        
-        var foregroundColor: Color {
-            switch self {
-            case .apple: return Color.white
-            case .google: return Color.black
-            }
-        }
-    }
-    
-    let provider: Provider
-    let action: () -> Void
-    @State private var isPressed = false
-    
-    var body: some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                isPressed = true
-            }
-            HapticManager.shared.impact(.light)
-            action()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                isPressed = false
-            }
-        }) {
-            HStack(spacing: 12) {
-                Image(systemName: provider.icon)
-                    .font(.system(size: 20, weight: .medium))
-                
-                Text(provider.title)
-                    .font(.buttonMedium())
-                    .fontWeight(.medium)
-                
-                Spacer()
-            }
-            .foregroundColor(provider.foregroundColor)
-            .padding(.horizontal, 20)
-            .frame(height: 50)
+            .foregroundColor(isSelected ? .black : .white.opacity(0.8))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
             .background(
                 Capsule()
-                    .fill(provider.backgroundColor)
+                    .fill(isSelected ? selectedColor : Color.white.opacity(0.1))
                     .overlay(
-                        provider == .google ?
-                        Capsule().stroke(Color.gray.opacity(0.3), lineWidth: 1) : nil
+                        Capsule()
+                            .stroke(
+                                isSelected ? Color.clear : Color.white.opacity(0.15),
+                                lineWidth: 1
+                            )
                     )
             )
-            .shadow(color: .shadowLight, radius: 5, x: 0, y: 3)
-            .scaleEffect(isPressed ? 0.95 : 1.0)
         }
+        .animation(.easeInOut(duration: 0.2), value: isSelected)
+    }
+}
+
+// MARK: - Floating Action Button
+
+struct FloatingActionButton: View {
+    let icon: String
+    var gradientColors: [Color] = [.glowGold, .glowGoldDark]
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundColor(.black)
+                .frame(width: 60, height: 60)
+                .background(
+                    ZStack {
+                        Circle()
+                            .fill(Color.glowGold)
+                            .blur(radius: 15)
+                            .opacity(0.6)
+                            .offset(y: 5)
+                        
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: gradientColors,
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    }
+                )
+        }
+        .shadow(color: Color.glowGold.opacity(0.3), radius: 10, y: 5)
+    }
+}
+
+// MARK: - Preview
+
+#Preview {
+    ZStack {
+        AnimatedBackground(style: .cosmic)
+        
+        VStack(spacing: 20) {
+            PrimaryButton(title: "Get Started", icon: "arrow.right") {}
+            
+            SecondaryButton(title: "Maybe Later", icon: "clock") {}
+            
+            GhostButton(title: "Skip") {}
+            
+            HStack(spacing: 15) {
+                IconButton(icon: "heart.fill", iconColor: .red) {}
+                IconButton(icon: "square.and.arrow.up") {}
+                IconButton(icon: "bookmark") {}
+            }
+            
+            HStack(spacing: 10) {
+                PillButton(title: "All", isSelected: true) {}
+                PillButton(title: "Favorites", icon: "heart", isSelected: false) {}
+                PillButton(title: "Recent", isSelected: false) {}
+            }
+            
+            Spacer()
+            
+            FloatingActionButton(icon: "plus") {}
+        }
+        .padding()
     }
 }

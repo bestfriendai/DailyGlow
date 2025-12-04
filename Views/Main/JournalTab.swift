@@ -1,354 +1,195 @@
-//
-//  JournalTab.swift
-//  DailyGlow
-//
-//  Tab for journaling, gratitude tracking, and mood history
-//
-
 import SwiftUI
-import Charts
+
+// MARK: - Journal Tab - Gratitude & Reflection
 
 struct JournalTab: View {
-    // MARK: - Environment
-    @EnvironmentObject var storageManager: StorageManager
-    @StateObject private var hapticManager = HapticManager.shared
-    
-    // MARK: - State
+    @AppStorage("journalEntries") private var journalEntriesData: Data = Data()
+    @State private var entries: [JournalEntry] = []
     @State private var showingNewEntry = false
-    @State private var selectedEntry: JournalEntry?
-    @State private var searchText = ""
-    @State private var selectedTimeframe: Timeframe = .week
-    @State private var selectedMoodFilter: Mood?
-    @State private var showingAnalytics = false
+    @State private var selectedEntry: JournalEntry? = nil
     
-    // MARK: - Enums
-    enum Timeframe: String, CaseIterable {
-        case week = "Week"
-        case month = "Month"
-        case year = "Year"
-        case all = "All Time"
-        
-        var days: Int {
-            switch self {
-            case .week: return 7
-            case .month: return 30
-            case .year: return 365
-            case .all: return Int.max
-            }
-        }
-    }
-    
-    // MARK: - Computed Properties
-    private var filteredEntries: [JournalEntry] {
-        var entries = storageManager.journalEntries
-        
-        // Apply search filter
-        if !searchText.isEmpty {
-            entries = entries.filter { entry in
-                entry.content.localizedCaseInsensitiveContains(searchText) ||
-                entry.gratitude.joined(separator: " ").localizedCaseInsensitiveContains(searchText) ||
-                entry.tags.joined(separator: " ").localizedCaseInsensitiveContains(searchText)
-            }
-        }
-        
-        // Apply mood filter
-        if let mood = selectedMoodFilter {
-            entries = entries.filter { $0.mood == mood }
-        }
-        
-        // Apply timeframe filter
-        if selectedTimeframe != .all {
-            let cutoffDate = Calendar.current.date(byAdding: .day, value: -selectedTimeframe.days, to: Date()) ?? Date()
-            entries = entries.filter { $0.date >= cutoffDate }
-        }
-        
-        return entries
-    }
-    
-    private var moodData: [(mood: Mood, count: Int)] {
-        let moodCounts = Dictionary(grouping: filteredEntries, by: { $0.mood })
-            .mapValues { $0.count }
-        
-        return Mood.allCases.map { mood in
-            (mood: mood, count: moodCounts[mood] ?? 0)
-        }
-    }
-    
-    private var streakData: Int {
-        // Calculate journaling streak
-        let sortedEntries = storageManager.journalEntries.sorted { $0.date > $1.date }
-        var streak = 0
-        var lastDate = Date()
-        
-        for entry in sortedEntries {
-            let daysDiff = Calendar.current.dateComponents([.day], from: entry.date, to: lastDate).day ?? 0
-            if daysDiff <= 1 {
-                streak += 1
-                lastDate = entry.date
-            } else {
-                break
-            }
-        }
-        
-        return streak
-    }
-    
-    // MARK: - Body
     var body: some View {
-        NavigationView {
-            ZStack {
-                // Background
-                LinearGradient(
-                    colors: GradientTheme.getGradient(for: .night),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+        ZStack {
+            // Background
+            AnimatedBackground(style: .aurora, showParticles: false)
+            
+            VStack(spacing: 0) {
+                // Header
+                headerView
                 
-                // Content
-                ScrollView {
-                    VStack(spacing: 20) {
-                        // Stats overview
-                        statsOverview
-                            .padding(.horizontal, 20)
-                        
-                        // Mood chart
-                        if !storageManager.journalEntries.isEmpty {
-                            moodChart
-                                .padding(.horizontal, 20)
-                        }
-                        
-                        // Search and filters
-                        searchAndFilters
-                            .padding(.horizontal, 20)
-                        
-                        // Journal entries
-                        if filteredEntries.isEmpty {
-                            emptyStateView
-                                .padding(.top, 40)
-                        } else {
-                            entriesList
-                                .padding(.horizontal, 20)
-                        }
-                    }
-                    .padding(.vertical, 20)
+                // Stats cards
+                statsSection
+                    .padding(.top, 16)
+                
+                // Entries list
+                if entries.isEmpty {
+                    emptyState
+                } else {
+                    entriesList
                 }
             }
-            .navigationTitle("Journal")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
+            
+            // FAB
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    FloatingActionButton(icon: "plus") {
                         showingNewEntry = true
-                        HapticManager.shared.impact(.light)
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title3)
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(.white)
+                        HapticManager.shared.impact(.medium)
                     }
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 100)
                 }
             }
         }
         .sheet(isPresented: $showingNewEntry) {
-            NewJournalEntryView()
-                .environmentObject(storageManager)
+            NewJournalEntryView(onSave: { entry in
+                entries.insert(entry, at: 0)
+                saveEntries()
+                SoundManager.shared.playSuccess()
+            })
         }
         .sheet(item: $selectedEntry) { entry in
             JournalEntryDetailView(entry: entry)
-                .environmentObject(storageManager)
         }
-        .sheet(isPresented: $showingAnalytics) {
-            JournalAnalyticsView()
-                .environmentObject(storageManager)
+        .onAppear {
+            loadEntries()
         }
     }
     
-    // MARK: - Stats Overview
-    private var statsOverview: some View {
-        HStack(spacing: 12) {
-            StatCard(
-                title: "Entries",
-                value: "\(storageManager.journalEntries.count)",
-                icon: "book.fill",
-                color: .purple
-            )
+    // MARK: - Header
+    
+    private var headerView: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Journal")
+                    .font(.system(size: 32, weight: .bold))
+                    .foregroundColor(.textPrimary)
+                
+                Text("Reflect & grow")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.textTertiary)
+            }
             
-            StatCard(
-                title: "Streak",
-                value: "\(streakData)",
-                icon: "flame.fill",
-                color: .orange
-            )
+            Spacer()
             
-            StatCard(
-                title: "Gratitude",
-                value: "\(storageManager.journalEntries.flatMap { $0.gratitude }.count)",
-                icon: "heart.fill",
-                color: .pink
-            )
+            Image(systemName: "book.fill")
+                .font(.system(size: 28))
+                .foregroundColor(.glowTeal)
+                .shadow(color: .glowTeal.opacity(0.5), radius: 10)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
+    }
+    
+    // MARK: - Stats Section
+    
+    private var statsSection: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                StatCard(
+                    title: "Total Entries",
+                    value: "\(entries.count)",
+                    icon: "doc.text.fill",
+                    color: .glowPurple
+                )
+                
+                StatCard(
+                    title: "This Week",
+                    value: "\(entriesThisWeek)",
+                    icon: "calendar",
+                    color: .glowTeal
+                )
+                
+                StatCard(
+                    title: "Gratitudes",
+                    value: "\(totalGratitudes)",
+                    icon: "heart.fill",
+                    color: .glowCoral
+                )
+            }
+            .padding(.horizontal, 20)
         }
     }
     
-    // MARK: - Mood Chart
-    private var moodChart: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Mood Tracker")
-                    .font(Typography.h3)
-                    .foregroundColor(.white)
-                
-                Spacer()
-                
-                Button {
-                    showingAnalytics = true
-                } label: {
-                    Text("View All")
-                        .font(Typography.small)
-                        .foregroundColor(.white.opacity(0.7))
-                }
-            }
-            
-            // Mood distribution
-            HStack(spacing: 8) {
-                ForEach(moodData, id: \.mood) { data in
-                    VStack(spacing: 6) {
-                        // Bar
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(data.mood.color)
-                            .frame(width: 40, height: CGFloat(data.count) * 10 + 20)
-                            .overlay(
-                                Text("\(data.count)")
-                                    .font(Typography.tiny)
-                                    .foregroundColor(.white)
-                                    .fontWeight(.bold)
-                            )
-                        
-                        // Icon
-                        Image(systemName: data.mood.icon)
-                            .font(.caption)
-                            .foregroundColor(data.mood.color)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-            .frame(height: 120)
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(.ultraThinMaterial)
-            )
-        }
+    private var entriesThisWeek: Int {
+        let weekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        return entries.filter { $0.date > weekAgo }.count
     }
     
-    // MARK: - Search and Filters
-    private var searchAndFilters: some View {
-        VStack(spacing: 12) {
-            // Search bar
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.white.opacity(0.5))
-                
-                TextField("Search entries...", text: $searchText)
-                    .foregroundColor(.white)
-                    .autocapitalization(.none)
-                
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.white.opacity(0.5))
-                    }
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.ultraThinMaterial)
-            )
-            
-            // Filters
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    // Timeframe filters
-                    ForEach(Timeframe.allCases, id: \.self) { timeframe in
-                        JournalFilterChip(
-                            title: timeframe.rawValue,
-                            isSelected: selectedTimeframe == timeframe
-                        ) {
-                            withAnimation {
-                                selectedTimeframe = timeframe
-                            }
-                        }
-                    }
-                    
-                    Divider()
-                        .frame(height: 20)
-                        .background(Color.white.opacity(0.3))
-                    
-                    // Mood filters
-                    ForEach(Mood.allCases, id: \.self) { mood in
-                        JournalFilterChip(
-                            title: mood.rawValue.capitalized,
-                            icon: mood.icon,
-                            color: mood.color,
-                            isSelected: selectedMoodFilter == mood
-                        ) {
-                            withAnimation {
-                                selectedMoodFilter = selectedMoodFilter == mood ? nil : mood
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    private var totalGratitudes: Int {
+        entries.reduce(0) { $0 + $1.gratitude.filter { !$0.isEmpty }.count }
     }
     
     // MARK: - Entries List
+    
     private var entriesList: some View {
-        VStack(spacing: 12) {
-            ForEach(filteredEntries) { entry in
-                JournalEntryCard(entry: entry) {
-                    selectedEntry = entry
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                ForEach(entries) { entry in
+                    JournalEntryCard(entry: entry) {
+                        selectedEntry = entry
+                    }
                 }
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 120)
         }
     }
     
     // MARK: - Empty State
-    private var emptyStateView: some View {
+    
+    private var emptyState: some View {
         VStack(spacing: 20) {
-            Image(systemName: "book.closed")
-                .font(.system(size: 80))
-                .foregroundColor(.white.opacity(0.3))
+            Spacer()
+            
+            ZStack {
+                Circle()
+                    .fill(Color.cardDark)
+                    .frame(width: 100, height: 100)
+                
+                Image(systemName: "pencil.line")
+                    .font(.system(size: 40))
+                    .foregroundColor(.textTertiary)
+            }
             
             VStack(spacing: 8) {
-                Text("Start Your Journal")
-                    .font(Typography.h2)
-                    .foregroundColor(.white)
+                Text("Start your journal")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(.textPrimary)
                 
-                Text("Record your thoughts, track your mood, and practice gratitude")
-                    .font(Typography.body)
-                    .foregroundColor(.white.opacity(0.7))
+                Text("Tap + to write your first entry\nand track your gratitude journey")
+                    .font(.system(size: 16))
+                    .foregroundColor(.textTertiary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
             }
             
-            CustomButton(
-                title: "Write First Entry",
-                style: .primary,
-                icon: "pencil"
-            ) {
-                showingNewEntry = true
-            }
-            .frame(maxWidth: 200)
+            Spacer()
+            Spacer()
+        }
+    }
+    
+    // MARK: - Data Persistence
+    
+    private func loadEntries() {
+        if let decoded = try? JSONDecoder().decode([JournalEntry].self, from: journalEntriesData) {
+            entries = decoded
+        }
+    }
+    
+    private func saveEntries() {
+        if let encoded = try? JSONEncoder().encode(entries) {
+            journalEntriesData = encoded
         }
     }
 }
 
+// MARK: - Using JournalEntry from UserPreferences.swift
+
 // MARK: - Stat Card
+
 struct StatCard: View {
     let title: String
     let value: String
@@ -356,539 +197,325 @@ struct StatCard: View {
     let color: Color
     
     var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(color)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(color)
+                
+                Spacer()
+            }
             
             Text(value)
-                .font(Typography.h3)
-                .fontWeight(.bold)
-                .foregroundColor(.white)
+                .font(.system(size: 28, weight: .bold))
+                .foregroundColor(.textPrimary)
             
             Text(title)
-                .font(Typography.tiny)
-                .foregroundColor(.white.opacity(0.7))
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.textTertiary)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
+        .padding(16)
+        .frame(width: 130)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
+                .fill(Color.cardDark)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(color.opacity(0.3), lineWidth: 1)
+                )
         )
-    }
-}
-
-// MARK: - Filter Chip
-private struct JournalFilterChip: View {
-    let title: String
-    var icon: String? = nil
-    var color: Color = .white
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                if let icon = icon {
-                    Image(systemName: icon)
-                        .font(.caption)
-                }
-                Text(title)
-                    .font(Typography.tiny)
-            }
-            .foregroundColor(isSelected ? .white : color.opacity(0.8))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                Capsule()
-                    .fill(isSelected ? color.opacity(0.3) : Color.white.opacity(0.1))
-                    .overlay(
-                        Capsule()
-                            .stroke(color.opacity(isSelected ? 0.6 : 0.3), lineWidth: 1)
-                    )
-            )
-        }
     }
 }
 
 // MARK: - Journal Entry Card
+
 struct JournalEntryCard: View {
     let entry: JournalEntry
     let onTap: () -> Void
     
-    private var dateFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter
-    }
-    
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 12) {
-                // Header
                 HStack {
                     // Date
-                    Text(dateFormatter.string(from: entry.date))
-                        .font(Typography.small)
-                        .foregroundColor(.white.opacity(0.7))
+                    Text(entry.date, style: .date)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.glowGold)
                     
                     Spacer()
                     
                     // Mood
-                    HStack(spacing: 4) {
-                        Image(systemName: entry.mood.icon)
-                        Text(entry.mood.rawValue.capitalized)
+                    if let mood = entry.mood {
+                        Text(mood.rawValue)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.textSecondary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule()
+                                    .fill(Color.white.opacity(0.1))
+                            )
                     }
-                    .font(Typography.tiny)
-                    .foregroundColor(entry.mood.color)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(entry.mood.color.opacity(0.2))
-                    )
                 }
                 
                 // Content preview
-                Text(entry.content)
-                    .font(Typography.body)
-                    .foregroundColor(.white)
-                    .lineLimit(3)
-                    .multilineTextAlignment(.leading)
+                if !entry.content.isEmpty {
+                    Text(entry.content)
+                        .font(.system(size: 15))
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
                 
-                // Gratitude
-                if !entry.gratitude.isEmpty {
-                    HStack {
+                // Gratitudes preview
+                let filledGratitudes = entry.gratitude.filter { !$0.isEmpty }
+                if !filledGratitudes.isEmpty {
+                    HStack(spacing: 4) {
                         Image(systemName: "heart.fill")
-                            .font(.caption)
-                            .foregroundColor(.pink)
+                            .font(.system(size: 12))
+                            .foregroundColor(.red.opacity(0.8))
                         
-                        Text("Grateful for \(entry.gratitude.count) thing\(entry.gratitude.count == 1 ? "" : "s")")
-                            .font(Typography.tiny)
-                            .foregroundColor(.white.opacity(0.7))
-                    }
-                }
-                
-                // Tags
-                if !entry.tags.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 6) {
-                            ForEach(entry.tags, id: \.self) { tag in
-                                Text("#\(tag)")
-                                    .font(Typography.tiny)
-                                    .foregroundColor(.white.opacity(0.6))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(
-                                        Capsule()
-                                            .fill(Color.white.opacity(0.1))
-                                    )
-                            }
-                        }
+                        Text("\(filledGratitudes.count) gratitudes")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.textTertiary)
                     }
                 }
             }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(.ultraThinMaterial)
-            )
-        }
-    }
-}
-
-// MARK: - New Journal Entry View
-struct NewJournalEntryView: View {
-    @EnvironmentObject var storageManager: StorageManager
-    @Environment(\.dismiss) var dismiss
-    
-    @State private var content = ""
-    @State private var selectedMood: Mood = .calm
-    @State private var gratitudeItems: [String] = ["", "", ""]
-    @State private var tags: [String] = []
-    @State private var newTag = ""
-    @State private var showingSaveConfirmation = false
-    
-    var body: some View {
-        NavigationView {
-            ZStack {
-                // Background
-                LinearGradient(
-                    colors: GradientTheme.getGradient(for: selectedMood),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-                
-                // Content
-                ScrollView {
-                    VStack(spacing: 24) {
-                        // Mood selector
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("How are you feeling?")
-                                .font(Typography.h3)
-                                .foregroundColor(.white)
-                            
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
-                                    ForEach(Mood.allCases, id: \.self) { mood in
-                                        JournalMoodButton(
-                                            mood: mood,
-                                            isSelected: selectedMood == mood
-                                        ) {
-                                            withAnimation {
-                                                selectedMood = mood
-                                            }
-                                            HapticManager.shared.selection()
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // Journal entry
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("What's on your mind?")
-                                .font(Typography.h3)
-                                .foregroundColor(.white)
-                            
-                            TextEditor(text: $content)
-                                .font(Typography.body)
-                                .foregroundColor(.black)
-                                .scrollContentBackground(.hidden)
-                                .padding(12)
-                                .background(Color.white)
-                                .cornerRadius(16)
-                                .frame(minHeight: 150)
-                        }
-                        
-                        // Gratitude
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("What are you grateful for?")
-                                .font(Typography.h3)
-                                .foregroundColor(.white)
-                            
-                            ForEach(0..<3) { index in
-                                HStack {
-                                    Image(systemName: "heart.fill")
-                                        .foregroundColor(.pink)
-                                        .frame(width: 30)
-                                    
-                                    TextField("I'm grateful for...", text: $gratitudeItems[index])
-                                        .font(Typography.body)
-                                        .foregroundColor(.black)
-                                        .padding(12)
-                                        .background(Color.white)
-                                        .cornerRadius(12)
-                                }
-                            }
-                        }
-                        
-                        // Tags
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Tags")
-                                .font(Typography.h3)
-                                .foregroundColor(.white)
-                            
-                            // Existing tags
-                            if !tags.isEmpty {
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 8) {
-                                        ForEach(tags, id: \.self) { tag in
-                                            HStack(spacing: 4) {
-                                                Text("#\(tag)")
-                                                    .font(Typography.small)
-                                                
-                                                Button {
-                                                    tags.removeAll { $0 == tag }
-                                                } label: {
-                                                    Image(systemName: "xmark.circle.fill")
-                                                        .font(.caption)
-                                                }
-                                            }
-                                            .foregroundColor(.white)
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 6)
-                                            .background(
-                                                Capsule()
-                                                    .fill(Color.white.opacity(0.2))
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                            
-                            // Add new tag
-                            HStack {
-                                TextField("Add a tag...", text: $newTag)
-                                    .font(Typography.body)
-                                    .foregroundColor(.black)
-                                    .padding(12)
-                                    .background(Color.white)
-                                    .cornerRadius(12)
-                                    .onSubmit {
-                                        if !newTag.isEmpty {
-                                            tags.append(newTag)
-                                            newTag = ""
-                                        }
-                                    }
-                                
-                                Button {
-                                    if !newTag.isEmpty {
-                                        tags.append(newTag)
-                                        newTag = ""
-                                    }
-                                } label: {
-                                    Image(systemName: "plus.circle.fill")
-                                        .font(.title2)
-                                        .foregroundColor(.white)
-                                }
-                            }
-                        }
-                    }
-                    .padding(24)
-                }
-            }
-            .navigationTitle("New Entry")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                    .foregroundColor(.white)
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        saveEntry()
-                    }
-                    .foregroundColor(.white)
-                    .fontWeight(.semibold)
-                    .disabled(content.isEmpty)
-                }
-            }
-        }
-        .alert("Entry Saved!", isPresented: $showingSaveConfirmation) {
-            Button("OK") {
-                dismiss()
-            }
-        } message: {
-            Text("Your journal entry has been saved successfully.")
-        }
-    }
-    
-    private func saveEntry() {
-        let entry = JournalEntry(
-            content: content,
-            mood: selectedMood,
-            gratitude: gratitudeItems.filter { !$0.isEmpty },
-            tags: tags
-        )
-        
-        storageManager.addJournalEntry(entry)
-        HapticManager.shared.notification(.success)
-        showingSaveConfirmation = true
-    }
-}
-
-// MARK: - Mood Button
-private struct JournalMoodButton: View {
-    let mood: Mood
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: mood.icon)
-                    .font(.title2)
-                    .foregroundColor(mood.color)
-                
-                Text(mood.rawValue.capitalized)
-                    .font(Typography.small)
-                    .foregroundColor(.white)
-            }
-            .frame(width: 80, height: 80)
+            .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(isSelected ? mood.color.opacity(0.3) : .ultraThinMaterial)
+                    .fill(Color.cardDark)
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .stroke(mood.color.opacity(isSelected ? 0.8 : 0.3), lineWidth: 2)
+                            .stroke(Color.cardBorder, lineWidth: 1)
                     )
             )
-            .scaleEffect(isSelected ? 1.05 : 1.0)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - New Entry View
+
+struct NewJournalEntryView: View {
+    @Environment(\.dismiss) var dismiss
+    @State private var content: String = ""
+    @State private var selectedMood: Mood? = nil
+    @State private var gratitude1: String = ""
+    @State private var gratitude2: String = ""
+    @State private var gratitude3: String = ""
+    let onSave: (JournalEntry) -> Void
+    
+    var body: some View {
+        ZStack {
+            // Background
+            DarkBackground()
+            
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Header
+                    HStack {
+                        Button("Cancel") {
+                            dismiss()
+                        }
+                        .foregroundColor(.textSecondary)
+                        
+                        Spacer()
+                        
+                        Text("New Entry")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.textPrimary)
+                        
+                        Spacer()
+                        
+                        Button("Save") {
+                            let gratitudes = [gratitude1, gratitude2, gratitude3].filter { !$0.isEmpty }
+                            let entry = JournalEntry(
+                                content: content,
+                                mood: selectedMood,
+                                gratitude: gratitudes
+                            )
+                            onSave(entry)
+                            dismiss()
+                        }
+                        .foregroundColor(.glowGold)
+                        .fontWeight(.semibold)
+                    }
+                    .padding(.top, 20)
+                    
+                    // Mood selector
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("How are you feeling?")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.textPrimary)
+                        
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 10) {
+                            ForEach(Mood.allCases, id: \.self) { mood in
+                                Button {
+                                    selectedMood = mood
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: mood.icon)
+                                            .font(.system(size: 12))
+                                        Text(mood.rawValue)
+                                            .font(.system(size: 14, weight: .medium))
+                                    }
+                                    .foregroundColor(selectedMood == mood ? .black : .textPrimary)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 10)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(selectedMood == mood ? Color.glowGold : Color.cardDark)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    
+                    // What's on your mind
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("What's on your mind?")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.textPrimary)
+                        
+                        TextEditor(text: $content)
+                            .font(.system(size: 16))
+                            .foregroundColor(.textPrimary)
+                            .scrollContentBackground(.hidden)
+                            .frame(minHeight: 120)
+                            .padding(12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(Color.cardDark)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 14)
+                                            .stroke(Color.cardBorder, lineWidth: 1)
+                                    )
+                            )
+                    }
+                    
+                    // Gratitudes
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("What are you grateful for?")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.textPrimary)
+                        
+                        GratitudeField(text: $gratitude1)
+                        GratitudeField(text: $gratitude2)
+                        GratitudeField(text: $gratitude3)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 40)
+            }
         }
     }
 }
 
-// MARK: - Journal Entry Detail View
-struct JournalEntryDetailView: View {
-    let entry: JournalEntry
-    @EnvironmentObject var storageManager: StorageManager
-    @Environment(\.dismiss) var dismiss
-    @State private var showingDeleteConfirmation = false
-    
-    private var dateFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMMM d, yyyy"
-        return formatter
-    }
-    
-    private var timeFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter
-    }
+struct GratitudeField: View {
+    @Binding var text: String
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                // Background
-                LinearGradient(
-                    colors: GradientTheme.getGradient(for: entry.mood),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
+        HStack(spacing: 12) {
+            Image(systemName: "heart.fill")
+                .font(.system(size: 14))
+                .foregroundColor(.red.opacity(0.7))
+            
+            TextField("I'm grateful for...", text: $text)
+                .font(.system(size: 16))
+                .foregroundColor(.textPrimary)
+                .tint(.glowGold)
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.cardDark)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.cardBorder, lineWidth: 1)
                 )
-                .ignoresSafeArea()
-                
-                // Content
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
-                        // Date and mood
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text(dateFormatter.string(from: entry.date))
-                                .font(Typography.h3)
-                                .foregroundColor(.white)
+        )
+    }
+}
+
+// MARK: - Entry Detail View
+
+struct JournalEntryDetailView: View {
+    let entry: JournalEntry
+    @Environment(\.dismiss) var dismiss
+    
+    var body: some View {
+        ZStack {
+            DarkBackground()
+            
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    // Header
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(entry.date, style: .date)
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(.textPrimary)
                             
-                            HStack(spacing: 12) {
-                                Label(entry.mood.rawValue.capitalized, systemImage: entry.mood.icon)
-                                    .font(Typography.body)
-                                    .foregroundColor(entry.mood.color)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        Capsule()
-                                            .fill(entry.mood.color.opacity(0.3))
-                                    )
-                                
-                                Text(timeFormatter.string(from: entry.date))
-                                    .font(Typography.small)
-                                    .foregroundColor(.white.opacity(0.7))
+                            if let mood = entry.mood {
+                                Text(mood.rawValue)
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.textSecondary)
                             }
                         }
                         
-                        // Content
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Entry")
-                                .font(Typography.caption)
-                                .foregroundColor(.white.opacity(0.7))
-                                .textCase(.uppercase)
+                        Spacer()
+                        
+                        IconButton(icon: "xmark", size: 36, iconSize: 16) {
+                            dismiss()
+                        }
+                    }
+                    
+                    // Content
+                    if !entry.content.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Reflection")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.textTertiary)
                             
                             Text(entry.content)
-                                .font(Typography.body)
-                                .foregroundColor(.white)
-                                .padding()
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(.ultraThinMaterial)
-                                )
+                                .font(.system(size: 16))
+                                .foregroundColor(.textPrimary)
+                                .lineSpacing(4)
                         }
-                        
-                        // Gratitude
-                        if !entry.gratitude.isEmpty {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Gratitude")
-                                    .font(Typography.caption)
-                                    .foregroundColor(.white.opacity(0.7))
-                                    .textCase(.uppercase)
-                                
-                                ForEach(entry.gratitude, id: \.self) { item in
-                                    HStack(spacing: 12) {
-                                        Image(systemName: "heart.fill")
-                                            .foregroundColor(.pink)
-                                        
-                                        Text(item)
-                                            .font(Typography.body)
-                                            .foregroundColor(.white)
-                                    }
-                                    .padding()
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .fill(.ultraThinMaterial)
-                                    )
-                                }
-                            }
-                        }
-                        
-                        // Tags
-                        if !entry.tags.isEmpty {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Tags")
-                                    .font(Typography.caption)
-                                    .foregroundColor(.white.opacity(0.7))
-                                    .textCase(.uppercase)
-                                
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 8) {
-                                        ForEach(entry.tags, id: \.self) { tag in
-                                            Text("#\(tag)")
-                                                .font(Typography.small)
-                                                .foregroundColor(.white)
-                                                .padding(.horizontal, 12)
-                                                .padding(.vertical, 6)
-                                                .background(
-                                                    Capsule()
-                                                        .fill(Color.white.opacity(0.2))
-                                                )
-                                        }
-                                    }
+                    }
+                    
+                    // Gratitudes
+                    let filledGratitudes = entry.gratitude.filter { !$0.isEmpty }
+                    if !filledGratitudes.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Gratitudes")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.textTertiary)
+                            
+                            ForEach(filledGratitudes, id: \.self) { gratitudeItem in
+                                HStack(spacing: 12) {
+                                    Image(systemName: "heart.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.red)
+                                    
+                                    Text(gratitudeItem)
+                                        .font(.system(size: 16))
+                                        .foregroundColor(.textPrimary)
                                 }
                             }
                         }
                     }
-                    .padding(24)
                 }
+                .padding(20)
+                .padding(.top, 20)
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                    .foregroundColor(.white)
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showingDeleteConfirmation = true
-                    } label: {
-                        Image(systemName: "trash")
-                            .foregroundColor(.red)
-                    }
-                }
-            }
-        }
-        .confirmationDialog("Delete Entry?", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) {
-                storageManager.deleteJournalEntry(entry)
-                dismiss()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This action cannot be undone.")
         }
     }
 }
 
 // MARK: - Preview
+
 #Preview {
     JournalTab()
-        .environmentObject(StorageManager.shared)
 }

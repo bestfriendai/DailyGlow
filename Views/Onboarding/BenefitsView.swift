@@ -1,159 +1,134 @@
-//
-//  BenefitsView.swift
-//  DailyGlow
-//
-//  Showcase the benefits of using Daily Glow
-//
-
 import SwiftUI
 
+// MARK: - Benefits View (Page 2)
+
 struct BenefitsView: View {
-    @State private var visibleBenefits: Set<Int> = []
+    let onContinue: () -> Void
+    @State private var showBenefits = false
     
-    let benefits = [
-        Benefit(
-            icon: "brain",
-            title: "Rewire Your Mind",
-            description: "Transform negative thoughts into positive beliefs through daily affirmations",
-            color: .purple
-        ),
-        Benefit(
-            icon: "heart.text.square",
-            title: "Practice Gratitude",
-            description: "Cultivate appreciation and find joy in everyday moments",
-            color: .pink
-        ),
-        Benefit(
-            icon: "moon.stars",
-            title: "Better Sleep",
-            description: "End your day with peaceful thoughts and wake up refreshed",
-            color: .indigo
-        ),
-        Benefit(
-            icon: "bolt.fill",
-            title: "Boost Confidence",
-            description: "Build self-esteem and tackle challenges with renewed energy",
-            color: .orange
-        )
+    private let benefits: [(icon: String, title: String, subtitle: String, color: Color)] = [
+        ("brain.head.profile", "Rewire Your Mind", "Transform negative thought patterns into empowering beliefs", .glowPurple),
+        ("heart.fill", "Practice Gratitude", "Cultivate appreciation and find joy in everyday moments", .glowCoral),
+        ("moon.stars.fill", "Better Sleep", "End your day with peaceful thoughts and calm your mind", .info),
+        ("flame.fill", "Build Confidence", "Develop unshakeable self-belief and inner strength", .glowGold)
     ]
     
     var body: some View {
-        VStack(spacing: 30) {
+        VStack(spacing: 0) {
+            Spacer()
+            
             // Header
-            VStack(spacing: 16) {
+            VStack(spacing: 12) {
                 Text("Why Daily Affirmations?")
-                    .font(Typography.h1)
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(.textPrimary)
                 
-                Text("Science-backed benefits for your mind and soul")
-                    .font(Typography.body)
-                    .foregroundColor(.white.opacity(0.8))
-                    .multilineTextAlignment(.center)
+                Text("Science-backed benefits for your mind")
+                    .font(.system(size: 16))
+                    .foregroundColor(.textSecondary)
             }
-            .padding(.horizontal, 40)
-            .padding(.top, 60)
+            .padding(.bottom, 32)
             
             // Benefits list
-            VStack(spacing: 20) {
+            VStack(spacing: 16) {
                 ForEach(Array(benefits.enumerated()), id: \.offset) { index, benefit in
                     BenefitCard(
-                        benefit: benefit,
-                        isVisible: visibleBenefits.contains(index)
+                        icon: benefit.icon,
+                        title: benefit.title,
+                        subtitle: benefit.subtitle,
+                        color: benefit.color
                     )
-                    .onAppear {
-                        withAnimation(.spring(response: 0.6, dampingFraction: 0.8).delay(Double(index) * 0.15)) {
-                            visibleBenefits.insert(index)
-                        }
-                    }
+                    .offset(x: showBenefits ? 0 : -50)
+                    .opacity(showBenefits ? 1 : 0)
+                    .animation(
+                        .spring(response: 0.5, dampingFraction: 0.7)
+                        .delay(Double(index) * 0.1),
+                        value: showBenefits
+                    )
                 }
             }
-            .padding(.horizontal, 30)
+            .padding(.horizontal, 20)
             
             Spacer()
             
-            // Research badge
+            // Badge
             HStack(spacing: 8) {
                 Image(systemName: "checkmark.seal.fill")
-                    .foregroundColor(.green)
+                    .foregroundColor(.success)
+                
                 Text("Backed by neuroscience research")
-                    .font(Typography.small)
-                    .foregroundColor(.white.opacity(0.7))
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.textTertiary)
+            }
+            .padding(.bottom, 16)
+            
+            // CTA
+            PrimaryButton(title: "Continue", icon: "arrow.right") {
+                onContinue()
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(
-                Capsule()
-                    .fill(Color.white.opacity(0.1))
-                    .overlay(
-                        Capsule()
-                            .stroke(Color.green.opacity(0.3), lineWidth: 1)
-                    )
-            )
-            .padding(.bottom, 20)
+            .padding(.bottom, 50)
+        }
+        .onAppear {
+            withAnimation {
+                showBenefits = true
+            }
         }
     }
 }
 
-struct Benefit {
-    let icon: String
-    let title: String
-    let description: String
-    let color: Color
-}
+// MARK: - Benefit Card
 
 struct BenefitCard: View {
-    let benefit: Benefit
-    let isVisible: Bool
+    let icon: String
+    let title: String
+    let subtitle: String
+    let color: Color
     
     var body: some View {
         HStack(spacing: 16) {
             // Icon
             ZStack {
                 Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                benefit.color.opacity(0.3),
-                                benefit.color.opacity(0.1)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(color.opacity(0.15))
                     .frame(width: 50, height: 50)
                 
-                Image(systemName: benefit.icon)
-                    .font(.title3)
-                    .foregroundColor(benefit.color)
+                Image(systemName: icon)
+                    .font(.system(size: 22))
+                    .foregroundColor(color)
             }
             
-            // Content
+            // Text
             VStack(alignment: .leading, spacing: 4) {
-                Text(benefit.title)
-                    .font(Typography.body)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.textPrimary)
                 
-                Text(benefit.description)
-                    .font(Typography.small)
-                    .foregroundColor(.white.opacity(0.7))
+                Text(subtitle)
+                    .font(.system(size: 14))
+                    .foregroundColor(.textTertiary)
                     .lineLimit(2)
             }
             
             Spacer()
         }
-        .padding()
+        .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
+                .fill(Color.cardDark)
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(benefit.color.opacity(0.2), lineWidth: 1)
+                        .stroke(color.opacity(0.2), lineWidth: 1)
                 )
         )
-        .opacity(isVisible ? 1 : 0)
-        .offset(x: isVisible ? 0 : -50)
-        .scaleEffect(isVisible ? 1 : 0.8)
+    }
+}
+
+// MARK: - Preview
+
+#Preview {
+    ZStack {
+        AnimatedBackground(style: .sunrise)
+        BenefitsView(onContinue: {})
     }
 }

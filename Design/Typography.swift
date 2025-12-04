@@ -1,180 +1,81 @@
 import SwiftUI
 
-// Typography struct for easier access
-struct Typography {
-    static let h1 = Font.system(size: 32, weight: .bold, design: .rounded)
-    static let h2 = Font.system(size: 24, weight: .bold, design: .rounded)
-    static let h3 = Font.system(size: 20, weight: .semibold, design: .rounded)
-    static let body = Font.system(size: 16, weight: .regular, design: .rounded)
-    static let small = Font.system(size: 14, weight: .regular, design: .rounded)
-    static let tiny = Font.system(size: 12, weight: .regular, design: .rounded)
-    static let caption = Font.system(size: 11, weight: .regular, design: .rounded)
-}
+// MARK: - Typography System
 
 extension Font {
-    // Affirmation fonts
-    static func affirmationTitle() -> Font {
-        .system(size: 36, weight: .bold, design: .rounded)
-    }
+    // MARK: - Display
+    static let displayLarge = Font.system(size: 48, weight: .bold, design: .rounded)
+    static let displayMedium = Font.system(size: 36, weight: .bold, design: .rounded)
+    static let displaySmall = Font.system(size: 28, weight: .bold, design: .rounded)
     
-    static func affirmationBody() -> Font {
-        .system(size: 22, weight: .medium, design: .rounded)
-    }
+    // MARK: - Headlines
+    static let headlineLarge = Font.system(size: 24, weight: .bold)
+    static let headlineMedium = Font.system(size: 20, weight: .semibold)
+    static let headlineSmall = Font.system(size: 18, weight: .semibold)
     
-    static func affirmationSubtitle() -> Font {
-        .system(size: 18, weight: .regular, design: .rounded)
-    }
+    // MARK: - Body
+    static let bodyLarge = Font.system(size: 17, weight: .regular)
+    static let bodyMedium = Font.system(size: 15, weight: .regular)
+    static let bodySmall = Font.system(size: 13, weight: .regular)
     
-    // UI fonts
-    static func uiTitle() -> Font {
-        .system(size: 28, weight: .bold, design: .rounded)
-    }
+    // MARK: - Labels
+    static let labelLarge = Font.system(size: 14, weight: .semibold)
+    static let labelMedium = Font.system(size: 12, weight: .medium)
+    static let labelSmall = Font.system(size: 11, weight: .medium)
     
-    static func uiHeadline() -> Font {
-        .system(size: 20, weight: .semibold, design: .rounded)
-    }
-    
-    static func uiBody() -> Font {
-        .system(size: 16, weight: .regular, design: .rounded)
-    }
-    
-    static func uiLabel() -> Font {
-        .system(size: 14, weight: .medium, design: .rounded)
-    }
-    
-    static func uiCaption() -> Font {
-        .system(size: 12, weight: .regular, design: .rounded)
-    }
-    
-    // Button fonts
-    static func buttonLarge() -> Font {
-        .system(size: 18, weight: .semibold, design: .rounded)
-    }
-    
-    static func buttonMedium() -> Font {
-        .system(size: 16, weight: .semibold, design: .rounded)
-    }
-    
-    static func buttonSmall() -> Font {
-        .system(size: 14, weight: .medium, design: .rounded)
-    }
-    
-    // Tab bar font
-    static func tabBarItem() -> Font {
-        .system(size: 11, weight: .medium, design: .rounded)
-    }
-    
-    // Onboarding fonts
-    static func onboardingTitle() -> Font {
-        .system(size: 32, weight: .bold, design: .rounded)
-    }
-    
-    static func onboardingSubtitle() -> Font {
-        .system(size: 18, weight: .regular, design: .rounded)
-    }
-    
-    // Category fonts
-    static func categoryTitle() -> Font {
-        .system(size: 16, weight: .semibold, design: .rounded)
-    }
-    
-    static func categoryBadge() -> Font {
-        .system(size: 12, weight: .bold, design: .rounded)
-    }
-    
-    // Journal fonts
-    static func journalEntry() -> Font {
-        .system(size: 16, weight: .regular, design: .serif)
-    }
-    
-    static func journalDate() -> Font {
-        .system(size: 12, weight: .medium, design: .rounded)
-    }
-    
-    // Widget fonts
-    static func widgetLarge() -> Font {
-        .system(size: 24, weight: .bold, design: .rounded)
-    }
-    
-    static func widgetMedium() -> Font {
-        .system(size: 18, weight: .semibold, design: .rounded)
-    }
-    
-    static func widgetSmall() -> Font {
-        .system(size: 14, weight: .medium, design: .rounded)
-    }
-    
-    // Paywall fonts
-    static func paywallTitle() -> Font {
-        .system(size: 30, weight: .bold, design: .rounded)
-    }
-    
-    static func paywallFeature() -> Font {
-        .system(size: 16, weight: .medium, design: .rounded)
-    }
-    
-    static func paywallPrice() -> Font {
-        .system(size: 36, weight: .bold, design: .rounded)
-    }
-    
-    static func paywallPeriod() -> Font {
-        .system(size: 14, weight: .regular, design: .rounded)
-    }
-    
-    // Streak fonts
-    static func streakNumber() -> Font {
-        .system(size: 48, weight: .black, design: .rounded)
-    }
-    
-    static func streakLabel() -> Font {
-        .system(size: 14, weight: .semibold, design: .rounded)
-    }
+    // MARK: - Affirmation Text
+    static let affirmationLarge = Font.system(size: 28, weight: .bold, design: .rounded)
+    static let affirmationMedium = Font.system(size: 24, weight: .semibold, design: .rounded)
+    static let affirmationSmall = Font.system(size: 20, weight: .semibold, design: .rounded)
 }
 
-// Text style modifiers
-struct AffirmationTextStyle: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .font(.affirmationBody())
-            .foregroundColor(.textOnGradient)
-            .multilineTextAlignment(.center)
-            .shadow(color: .shadowMedium, radius: 2, x: 0, y: 2)
-            .lineSpacing(4)
-    }
-}
+// MARK: - Text Styles View Modifier
 
-struct UITitleStyle: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .font(.uiTitle())
-            .foregroundColor(.textPrimary)
-    }
-}
-
-struct ButtonTextStyle: ViewModifier {
-    var size: ButtonSize = .medium
+struct GlowTextStyle: ViewModifier {
+    let style: TextStyle
     
-    enum ButtonSize {
-        case small, medium, large
+    enum TextStyle {
+        case displayLarge, displayMedium, displaySmall
+        case headlineLarge, headlineMedium, headlineSmall
+        case bodyLarge, bodyMedium, bodySmall
+        case labelLarge, labelMedium, labelSmall
+        case affirmation
     }
     
     func body(content: Content) -> some View {
-        content
-            .font(size == .large ? .buttonLarge() : size == .medium ? .buttonMedium() : .buttonSmall())
-            .foregroundColor(.textOnGradient)
+        switch style {
+        case .displayLarge:
+            content.font(.displayLarge).foregroundColor(.textPrimary)
+        case .displayMedium:
+            content.font(.displayMedium).foregroundColor(.textPrimary)
+        case .displaySmall:
+            content.font(.displaySmall).foregroundColor(.textPrimary)
+        case .headlineLarge:
+            content.font(.headlineLarge).foregroundColor(.textPrimary)
+        case .headlineMedium:
+            content.font(.headlineMedium).foregroundColor(.textPrimary)
+        case .headlineSmall:
+            content.font(.headlineSmall).foregroundColor(.textPrimary)
+        case .bodyLarge:
+            content.font(.bodyLarge).foregroundColor(.textSecondary)
+        case .bodyMedium:
+            content.font(.bodyMedium).foregroundColor(.textSecondary)
+        case .bodySmall:
+            content.font(.bodySmall).foregroundColor(.textTertiary)
+        case .labelLarge:
+            content.font(.labelLarge).foregroundColor(.textSecondary)
+        case .labelMedium:
+            content.font(.labelMedium).foregroundColor(.textTertiary)
+        case .labelSmall:
+            content.font(.labelSmall).foregroundColor(.textTertiary)
+        case .affirmation:
+            content.font(.affirmationLarge).foregroundColor(.textPrimary)
+        }
     }
 }
 
 extension View {
-    func affirmationTextStyle() -> some View {
-        modifier(AffirmationTextStyle())
-    }
-    
-    func uiTitleStyle() -> some View {
-        modifier(UITitleStyle())
-    }
-    
-    func buttonTextStyle(size: ButtonTextStyle.ButtonSize = .medium) -> some View {
-        modifier(ButtonTextStyle(size: size))
+    func glowText(_ style: GlowTextStyle.TextStyle) -> some View {
+        modifier(GlowTextStyle(style: style))
     }
 }
