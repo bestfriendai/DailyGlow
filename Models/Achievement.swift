@@ -474,7 +474,6 @@ class AchievementManager: ObservableObject {
     }
     
     func pointsToNextLevel() -> Int {
-        let currentLevelPoints = (level - 1) * 500
         let nextLevelPoints = level * 500
         return nextLevelPoints - totalPoints
     }
@@ -504,8 +503,6 @@ class AchievementManager: ObservableObject {
     }
     
     func trackAffirmationRead() {
-        let totalRead = UserDefaults.standard.integer(forKey: "totalAffirmationsViewed")
-        
         incrementProgress(for: "affirmations_10", by: 1)
         incrementProgress(for: "affirmations_50", by: 1)
         incrementProgress(for: "affirmations_100", by: 1)
@@ -532,7 +529,6 @@ class AchievementManager: ObservableObject {
     }
     
     func trackFavorite() {
-        let favoritesCount = achievements.first { $0.id == "favorites_10" }?.progress ?? 0
         incrementProgress(for: "favorites_10", by: 1)
         incrementProgress(for: "favorites_50", by: 1)
     }

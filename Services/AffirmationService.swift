@@ -107,7 +107,6 @@ class AffirmationService: ObservableObject {
     // MARK: - Daily Affirmation Management
     private func checkDailyAffirmation() {
         let calendar = Calendar.current
-        let now = Date()
         
         // Check if we need a new daily affirmation
         if let lastRefresh = lastRefreshDate,

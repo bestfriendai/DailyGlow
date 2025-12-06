@@ -54,6 +54,15 @@ struct PaywallView: View {
             case .lifetime: return "Pay once, own forever"
             }
         }
+        
+        var productID: ProductID {
+            switch self {
+            case .weekly: return .weekly
+            case .monthly: return .monthly
+            case .yearly: return .yearly
+            case .lifetime: return .lifetime
+            }
+        }
     }
     
     var body: some View {
@@ -238,8 +247,8 @@ struct PaywallView: View {
         
         Task {
             do {
-                // In production, use actual StoreKit purchase
-                try await Task.sleep(nanoseconds: 2_000_000_000)
+                // Use actual StoreKit 2 purchase via PurchaseManager
+                try await storeManager.purchase(selectedPlan.productID)
                 
                 await MainActor.run {
                     isPremium = true
@@ -247,6 +256,17 @@ struct PaywallView: View {
                     SoundManager.shared.playAchievementUnlock()
                     HapticManager.shared.notification(.success)
                     dismiss()
+                }
+            } catch PurchaseError.purchaseCancelled {
+                await MainActor.run {
+                    isLoading = false
+                    // User cancelled, no error needed
+                }
+            } catch PurchaseError.purchasePending {
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = "Your purchase is pending approval."
+                    showError = true
                 }
             } catch {
                 await MainActor.run {
@@ -260,7 +280,32 @@ struct PaywallView: View {
     
     private func restorePurchases() {
         HapticManager.shared.impact(.light)
-        // Restore logic
+        isLoading = true
+        
+        Task {
+            do {
+                try await storeManager.restorePurchases()
+                
+                await MainActor.run {
+                    isLoading = false
+                    if storeManager.isPremium {
+                        isPremium = true
+                        SoundManager.shared.playSuccess()
+                        HapticManager.shared.notification(.success)
+                        dismiss()
+                    } else {
+                        errorMessage = "No previous purchases found."
+                        showError = true
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = "Failed to restore purchases. Please try again."
+                    showError = true
+                }
+            }
+        }
     }
 }
 

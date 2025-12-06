@@ -302,11 +302,8 @@ class HapticManager: ObservableObject {
         }
     }
     
-    deinit {
-        Task { @MainActor in
-            stopEngine()
-        }
-    }
+    // Note: Since HapticManager is a singleton, deinit will never be called
+    // during normal app lifecycle. Engine cleanup happens when app terminates.
 }
 
 // MARK: - SwiftUI View Modifier

@@ -61,10 +61,6 @@ struct BlobShape: Shape {
                 path.move(to: CGPoint(x: x, y: y))
             } else {
                 let prevAngle = angleStep * Double(i - 1) + Double(animatableData)
-                let prevVariation = sin(prevAngle * 3 + Double(animatableData)) * 0.2 + 1
-                let prevR = radius * prevVariation
-                let prevX = centerX + CGFloat(cos(prevAngle)) * prevR
-                let prevY = centerY + CGFloat(sin(prevAngle)) * prevR
                 
                 let controlAngle = (prevAngle + angle) / 2
                 let controlR = radius * 1.1

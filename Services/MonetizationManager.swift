@@ -283,7 +283,9 @@ class MonetizationManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.shouldShowPaywall = false
+            Task { @MainActor in
+                self?.shouldShowPaywall = false
+            }
         }
     }
 }
