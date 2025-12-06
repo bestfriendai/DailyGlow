@@ -131,3 +131,19 @@ iOSInjectionProject/
 tmp/
 temp/
 
+# Downloaded/generated files - not needed in repo
+download_result*.zip
+*.zip
+
+# Screenshot/test images in root
+sim_*.png
+test_*.png
+fresh_install.png
+onboarding.png
+
+# Stray files
+logo_*.png
+sun*.png
+
+# Xcode project backups
+*.xcodeproj.backup.*/

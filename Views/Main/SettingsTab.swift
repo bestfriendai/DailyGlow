@@ -131,10 +131,10 @@ struct SettingsTab: View {
             AchievementsView()
         }
         .sheet(isPresented: $showPrivacyPolicy) {
-            SafariView(url: URL(string: "https://dailyglow.app/privacy")!)
+            PrivacyPolicyView()
         }
         .sheet(isPresented: $showTerms) {
-            SafariView(url: URL(string: "https://dailyglow.app/terms")!)
+            TermsOfServiceView()
         }
     }
     
